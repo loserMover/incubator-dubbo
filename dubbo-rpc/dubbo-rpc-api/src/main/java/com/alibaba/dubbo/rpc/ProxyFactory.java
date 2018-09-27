@@ -30,6 +30,8 @@ public interface ProxyFactory {
     /**
      * create proxy.
      *
+     * desc：创建Proxy，在引用服务的时候调用（服务消费）
+     *
      * @param invoker
      * @return proxy
      */
@@ -38,6 +40,8 @@ public interface ProxyFactory {
 
     /**
      * create invoker.
+     *
+     * desc：创建invoker，在服务暴露的时候调用（服务提供）
      *
      * @param <T>
      * @param proxy

@@ -102,6 +102,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     // the scope for referring/exporting a service, if it's local, it means searching in current JVM only.
     private String scope;
 
+    /**
+     * 校验 RegistryConfig 配置数组。
+     * 实际上，该方法会初始化 RegistryConfig 的配置属性。
+     */
     protected void checkRegistry() {
         // for backward compatibility
         if (registries == null || registries.isEmpty()) {
@@ -129,7 +133,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
             appendProperties(registryConfig);
         }
     }
-
+    /**
+     * 校验 ApplicationConfig 配置。
+     * 实际上，该方法会初始化 ApplicationConfig 的配置属性。
+     */
     @SuppressWarnings("deprecation")
     protected void checkApplication() {
         // for backward compatibility
@@ -156,8 +163,13 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         }
     }
 
+    /**
+     * desc：校验初始化注册RegistryConfig对象，同时将RegistryConfig对象转换成URL对象
+     * @param provider
+     * @return
+     */
     protected List<URL> loadRegistries(boolean provider) {
-        checkRegistry();
+        checkRegistry(); //校验和初始化RegistryConfig对象
         List<URL> registryList = new ArrayList<URL>();
         if (registries != null && !registries.isEmpty()) {
             for (RegistryConfig config : registries) {
@@ -165,7 +177,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 if (address == null || address.length() == 0) {
                     address = Constants.ANYHOST_VALUE;
                 }
-                String sysaddress = System.getProperty("dubbo.registry.address");
+                String sysaddress = System.getProperty("dubbo.registry.address"); //这里是否代码存在冗余
                 if (sysaddress != null && sysaddress.length() > 0) {
                     address = sysaddress;
                 }
@@ -202,6 +214,11 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         return registryList;
     }
 
+    /**
+     * desc: 校验初始化注册MonitorConfig对象，同时将MonitorConfig对象转换成URL对象
+     * @param registryURL
+     * @return
+     */
     protected URL loadMonitor(URL registryURL) {
         if (monitor == null) {
             String monitorAddress = ConfigUtils.getProperty("dubbo.monitor.address");
@@ -247,6 +264,11 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         return null;
     }
 
+    /**
+     * desc：校验接口非空，且interfaceClass是接口，方法列表都在接口中定义
+      * @param interfaceClass
+     * @param methods
+     */
     protected void checkInterfaceAndMethods(Class<?> interfaceClass, List<MethodConfig> methods) {
         // interface cannot be null
         if (interfaceClass == null) {
@@ -278,6 +300,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         }
     }
 
+    /**
+     * desc: 校验local, Stub 和 Mock 相关的配置
+     * @param interfaceClass
+     */
     protected void checkStubAndMock(Class<?> interfaceClass) {
         if (ConfigUtils.isNotEmpty(local)) {
             Class<?> localClass = ConfigUtils.isDefault(local) ? ReflectUtils.forName(interfaceClass.getName() + "Local") : ReflectUtils.forName(local);

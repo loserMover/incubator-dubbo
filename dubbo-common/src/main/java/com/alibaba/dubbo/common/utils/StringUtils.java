@@ -383,6 +383,12 @@ public final class StringUtils {
         return buf.toString();
     }
 
+    /**
+     * desc: 将字符串中大写改转化成小写，然后在转换的字符前面加上split字符
+     * @param camelName
+     * @param split
+     * @return
+     */
     public static String camelToSplitName(String camelName, String split) {
         if (camelName == null || camelName.length() == 0) {
             return camelName;

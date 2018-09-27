@@ -33,13 +33,21 @@ import java.util.Map;
 public class RpcInvocation implements Invocation, Serializable {
 
     private static final long serialVersionUID = -4355285085441097045L;
-
+    /**
+     * desc:方法名
+     */
     private String methodName;
-
+    /**
+     * desc: 方法参数类型数组
+     */
     private Class<?>[] parameterTypes;
-
+    /**
+     * desc：方法参数数组
+     */
     private Object[] arguments;
-
+    /**
+     * desc：隐式参数
+     */
     private Map<String, String> attachments;
 
     private transient Invoker<?> invoker;
