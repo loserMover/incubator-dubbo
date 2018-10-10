@@ -33,9 +33,13 @@ import java.net.InetSocketAddress;
 public class RemotingException extends Exception {
 
     private static final long serialVersionUID = -3160452149606778709L;
-
+    /**
+     * @desc 本地地址
+     */
     private InetSocketAddress localAddress;
-
+    /**
+     * @desc 远程地址
+     */
     private InetSocketAddress remoteAddress;
 
     public RemotingException(Channel channel, String msg) {

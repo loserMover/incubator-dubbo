@@ -26,9 +26,17 @@ import java.util.Map;
  * DubboExporter
  */
 public class DubboExporter<T> extends AbstractExporter<T> {
-
+    /**
+     * @desc 服务键
+     */
     private final String key;
-
+    /**
+     * @desc Exporter集合
+     *
+     * key：服务键
+     *
+     * 该值实际就是{@link com.alibaba.dubbo.rpc.protocol.AbstractProtocol#exporterMap}
+     */
     private final Map<String, Exporter<?>> exporterMap;
 
     public DubboExporter(Invoker<T> invoker, String key, Map<String, Exporter<?>> exporterMap) {
@@ -39,7 +47,9 @@ public class DubboExporter<T> extends AbstractExporter<T> {
 
     @Override
     public void unexport() {
+        //取消暴露服务
         super.unexport();
+        //移除
         exporterMap.remove(key);
     }
 

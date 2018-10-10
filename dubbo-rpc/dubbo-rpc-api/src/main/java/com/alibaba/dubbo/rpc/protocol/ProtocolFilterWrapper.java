@@ -43,31 +43,42 @@ public class ProtocolFilterWrapper implements Protocol {
         this.protocol = protocol;
     }
 
+    /**
+     * @desc 创建带Filter链的Invoker对象
+     *
+     * @param invoker Invoker对象
+     * @param key 获取URL参数名
+     * @param group 分组
+     * @param <T> 泛型
+     * @return Invoker对象
+     */
     private static <T> Invoker<T> buildInvokerChain(final Invoker<T> invoker, String key, String group) {
         Invoker<T> last = invoker;
+        //获得过滤器组
         List<Filter> filters = ExtensionLoader.getExtensionLoader(Filter.class).getActivateExtension(invoker.getUrl(), key, group);
+        // 倒序循环 Filter ，创建带 Filter 链的 Invoker 对象
         if (!filters.isEmpty()) {
             for (int i = filters.size() - 1; i >= 0; i--) {
                 final Filter filter = filters.get(i);
                 final Invoker<T> next = last;
                 last = new Invoker<T>() {
-
+                    @Override
                     public Class<T> getInterface() {
                         return invoker.getInterface();
                     }
-
+                    @Override
                     public URL getUrl() {
                         return invoker.getUrl();
                     }
-
+                    @Override
                     public boolean isAvailable() {
                         return invoker.isAvailable();
                     }
-
+                    @Override
                     public Result invoke(Invocation invocation) throws RpcException {
                         return filter.invoke(next, invocation);
                     }
-
+                    @Override
                     public void destroy() {
                         invoker.destroy();
                     }
@@ -87,9 +98,11 @@ public class ProtocolFilterWrapper implements Protocol {
     }
 
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+        //注册中心
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {
             return protocol.export(invoker);
         }
+        //建立带有Filter过滤链的Invoker，再暴露服务
         return protocol.export(buildInvokerChain(invoker, Constants.SERVICE_FILTER_KEY, Constants.PROVIDER));
     }
 

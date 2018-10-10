@@ -33,10 +33,17 @@ import java.util.Map;
  * InjvmProtocol
  */
 public class InjvmProtocol extends AbstractProtocol implements Protocol {
-
+    /**
+     * @desc 协议的名
+     */
     public static final String NAME = Constants.LOCAL_PROTOCOL;
-
+    /**
+     * @desc 默认端口
+     */
     public static final int DEFAULT_PORT = 0;
+    /**
+     * @desc 单例，在dubbo SPI中，被初始化，有且仅有一次
+     */
     private static InjvmProtocol INSTANCE;
 
     public InjvmProtocol() {
@@ -80,7 +87,15 @@ public class InjvmProtocol extends AbstractProtocol implements Protocol {
         return DEFAULT_PORT;
     }
 
+    /**
+     *
+     * @param invoker 服务的执行体
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+        //创建 InjvmExporter 对象
         return new InjvmExporter<T>(invoker, invoker.getUrl().getServiceKey(), exporterMap);
     }
 

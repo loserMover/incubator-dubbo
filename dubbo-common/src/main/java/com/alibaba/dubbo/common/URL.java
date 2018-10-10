@@ -881,7 +881,7 @@ public final class URL implements Serializable {
     public boolean isAnyHost() {
         return Constants.ANYHOST_VALUE.equals(host) || getParameter(Constants.ANYHOST_KEY, false);
     }
-
+    //key参数添加到服务提供者的 URL 中，并且需要编码。
     public URL addParameterAndEncoded(String key, String value) {
         if (value == null || value.length() == 0) {
             return this;
