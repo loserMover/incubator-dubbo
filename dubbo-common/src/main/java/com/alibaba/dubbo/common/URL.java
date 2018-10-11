@@ -966,7 +966,7 @@ public final class URL implements Serializable {
 
     /**
      * Add parameters to a new url.
-     *
+     * @desc 添加参数到url中
      * @param parameters parameters in key-value pairs
      * @return A new URL
      */

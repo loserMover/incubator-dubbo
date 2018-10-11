@@ -68,7 +68,17 @@ public class DubboProtocol extends AbstractProtocol {
      * key：服务器地址。格式为host:port
      */
     private final Map<String, ExchangeServer> serverMap = new ConcurrentHashMap<String, ExchangeServer>(); // <host:port,Exchanger>
+    /**
+     * @desc 通信客户端集合
+     *
+     * key：服务器地址。格式为：host:port
+     */
     private final Map<String, ReferenceCountExchangeClient> referenceClientMap = new ConcurrentHashMap<String, ReferenceCountExchangeClient>(); // <host:port,Exchanger>
+    /**
+     * @desc 幽灵客户端集合
+     *
+     * key：服务器地址。格式为：host:port。 和{@link #referenceClientMap}的key是一致的
+     */
     private final ConcurrentMap<String, LazyConnectExchangeClient> ghostClientMap = new ConcurrentHashMap<String, LazyConnectExchangeClient>();
     private final Set<String> optimizers = new ConcurrentHashSet<String>();
     //consumer side export a stub service for dispatching event
@@ -348,28 +358,38 @@ public class DubboProtocol extends AbstractProtocol {
     }
 
     public <T> Invoker<T> refer(Class<T> serviceType, URL url) throws RpcException {
+        // 初始化序列化优化器
         optimizeSerialization(url);
+        //获得远程通信客户端数组
+        //创建DubboInvoker对象
         // create rpc invoker.
         DubboInvoker<T> invoker = new DubboInvoker<T>(serviceType, url, getClients(url), invokers);
+        //添加到Invokers集合
         invokers.add(invoker);
         return invoker;
     }
 
+    /**
+     * @desc 获得连接服务提供者得远程通信客户端数组
+     * @param url 服务提供者URL
+     * @return 远程通信客户端
+     */
     private ExchangeClient[] getClients(URL url) {
+        //是否共享连接
         // whether to share connection
         boolean service_share_connect = false;
         int connections = url.getParameter(Constants.CONNECTIONS_KEY, 0);
         // if not configured, connection is shared, otherwise, one connection for one service
-        if (connections == 0) {
+        if (connections == 0) {// 未配置时，默认共享
             service_share_connect = true;
             connections = 1;
         }
-
+        // 创建连接服务提供者的 ExchangeClient 对象数组
         ExchangeClient[] clients = new ExchangeClient[connections];
         for (int i = 0; i < clients.length; i++) {
-            if (service_share_connect) {
+            if (service_share_connect) {//共享连接
                 clients[i] = getSharedClient(url);
-            } else {
+            } else {//不共享连接
                 clients[i] = initClient(url);
             }
         }
@@ -377,23 +397,31 @@ public class DubboProtocol extends AbstractProtocol {
     }
 
     /**
+     * @desc 获取客户端共享连接对象
      * Get shared connection
      */
     private ExchangeClient getSharedClient(URL url) {
+        //从集合中，查找ReferenceCountExchangeClient对象
         String key = url.getAddress();
         ReferenceCountExchangeClient client = referenceClientMap.get(key);
         if (client != null) {
+            // 若未关闭，增加指向该 Client 的数量，并返回它
             if (!client.isClosed()) {
                 client.incrementAndGetCount();
                 return client;
-            } else {
+            } else {//若已关闭，移除
                 referenceClientMap.remove(key);
             }
         }
+        //同步，创建ExchangeClient对象
         synchronized (key.intern()) {
+            //创建ExchangeClient对象
             ExchangeClient exchangeClient = initClient(url);
+            //将‘exchangeClient’包装，创建ReferenceCountExchangeClient对象
             client = new ReferenceCountExchangeClient(exchangeClient, ghostClientMap);
+            //添加到通信客户端集合
             referenceClientMap.put(key, client);
+            //添加到‘ghostClientMap’集合
             ghostClientMap.remove(key);
             return client;
         }

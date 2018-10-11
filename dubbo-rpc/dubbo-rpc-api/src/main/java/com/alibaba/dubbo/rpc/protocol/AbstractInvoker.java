@@ -43,15 +43,25 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public abstract class AbstractInvoker<T> implements Invoker<T> {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
-
+    /**
+     * @desc 接口类型
+     */
     private final Class<T> type;
-
+    /**
+     * @desc 服务URL
+     */
     private final URL url;
-
+    /**
+     * @desc 公用的隐式传参，在{@link #invoke(Invocation)}方法中使用
+     */
     private final Map<String, String> attachment;
-
+    /**
+     * @desc 是否可用，默认可用
+     */
     private volatile boolean available = true;
-
+    /**
+     * @desc 是否销毁，默认否
+     */
     private AtomicBoolean destroyed = new AtomicBoolean(false);
 
     public AbstractInvoker(Class<T> type, URL url) {

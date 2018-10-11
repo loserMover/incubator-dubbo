@@ -97,6 +97,7 @@ public abstract class AbstractReferenceConfig extends AbstractInterfaceConfig {
     }
 
     /**
+     * @desc 判断是否本地引用
      * @return
      * @deprecated instead, use scope to judge if it's in jvm, scope=local
      */
