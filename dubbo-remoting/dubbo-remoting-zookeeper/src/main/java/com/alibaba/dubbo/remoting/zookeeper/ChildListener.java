@@ -19,7 +19,11 @@ package com.alibaba.dubbo.remoting.zookeeper;
 import java.util.List;
 
 public interface ChildListener {
-
+    /**
+     * @desc 子节点发生变化的回调
+     * @param path 节点路径
+     * @param children 最新的子节点列表
+     */
     void childChanged(String path, List<String> children);
 
 }
