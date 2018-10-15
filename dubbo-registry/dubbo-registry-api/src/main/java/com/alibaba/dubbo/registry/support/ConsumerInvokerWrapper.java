@@ -27,10 +27,25 @@ import com.alibaba.dubbo.rpc.RpcException;
  * @date 2017/11/23
  */
 public class ConsumerInvokerWrapper<T> implements Invoker {
+    /**
+     * @desc Invoker对象
+     */
     private Invoker<T> invoker;
+    /**
+     * @desc 原始URL
+     */
     private URL originUrl;
+    /**
+     * @desc 注册中心URL
+     */
     private URL registryUrl;
+    /**
+     * @desc 服务消费URL
+     */
     private URL consumerUrl;
+    /**
+     * @desc 注册中心Directory
+     */
     private RegistryDirectory registryDirectory;
 
     public ConsumerInvokerWrapper(Invoker<T> invoker, URL registryUrl, URL consumerUrl, RegistryDirectory registryDirectory) {

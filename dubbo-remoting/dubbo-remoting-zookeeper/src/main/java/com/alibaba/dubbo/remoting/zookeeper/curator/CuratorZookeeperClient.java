@@ -37,21 +37,25 @@ import java.util.Collections;
 import java.util.List;
 
 public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatcher> {
-
+    /**
+     * @desc client对象
+     */
     private final CuratorFramework client;
 
     public CuratorZookeeperClient(URL url) {
         super(url);
         try {
+            //创建client对象
             CuratorFrameworkFactory.Builder builder = CuratorFrameworkFactory.builder()
-                    .connectString(url.getBackupAddress())
-                    .retryPolicy(new RetryNTimes(1, 1000))
-                    .connectionTimeoutMs(5000);
+                    .connectString(url.getBackupAddress())//连接地址
+                    .retryPolicy(new RetryNTimes(1, 1000))//重试策略，1次，间隔1000ms
+                    .connectionTimeoutMs(5000);//连接超时时间5000ms
             String authority = url.getAuthority();
             if (authority != null && authority.length() > 0) {
                 builder = builder.authorization("digest", authority.getBytes());
             }
             client = builder.build();
+            //添加监听器
             client.getConnectionStateListenable().addListener(new ConnectionStateListener() {
                 public void stateChanged(CuratorFramework client, ConnectionState state) {
                     if (state == ConnectionState.LOST) {
@@ -63,12 +67,17 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorWatch
                     }
                 }
             });
+            //启动client
             client.start();
         } catch (Exception e) {
             throw new IllegalStateException(e.getMessage(), e);
         }
     }
 
+    /**
+     * @decs 创建节点路径
+     * @param path 节点路径
+     */
     public void createPersistent(String path) {
         try {
             client.create().forPath(path);

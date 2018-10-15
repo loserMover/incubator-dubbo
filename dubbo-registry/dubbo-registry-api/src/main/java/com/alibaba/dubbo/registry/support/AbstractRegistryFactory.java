@@ -42,7 +42,11 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
 
     // The lock for the acquisition process of the registry
     private static final ReentrantLock LOCK = new ReentrantLock();
-
+    /**
+     * @desc Registry集合
+     *
+     * key：{@link URL#toServiceString()}
+     */
     // Registry Collection Map<RegistryAddress, Registry>
     private static final Map<String, Registry> REGISTRIES = new ConcurrentHashMap<String, Registry>();
 
@@ -56,6 +60,7 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
     }
 
     /**
+     * @deesc 销毁所有Registry对象
      * Close all created registries
      */
     // TODO: 2017/8/30 to move somewhere else better
@@ -63,9 +68,11 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Close all registries " + getRegistries());
         }
+        //获得锁
         // Lock up the registry shutdown process
         LOCK.lock();
         try {
+            //循环销毁
             for (Registry registry : getRegistries()) {
                 try {
                     registry.destroy();
@@ -73,13 +80,20 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
                     LOGGER.error(e.getMessage(), e);
                 }
             }
+            //情况集合
             REGISTRIES.clear();
         } finally {
+            //释放锁
             // Release the lock
             LOCK.unlock();
         }
     }
 
+    /**
+     * @desc 连接注册中心 获取Registry 对象。优先从缓存中获取，否则进行创建
+     * @param url Registry address, is not allowed to be empty
+     * @return
+     */
     public Registry getRegistry(URL url) {
         url = url.setPath(RegistryService.class.getName())
                 .addParameter(Constants.INTERFACE_KEY, RegistryService.class.getName())
@@ -104,6 +118,11 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
         }
     }
 
+    /**
+     * @desc 创建Registry对象
+     * @param url 注册中心地址
+     * @return Registry
+     */
     protected abstract Registry createRegistry(URL url);
 
 }

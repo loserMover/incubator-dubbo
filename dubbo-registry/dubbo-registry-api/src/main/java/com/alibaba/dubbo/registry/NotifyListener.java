@@ -26,7 +26,16 @@ import java.util.List;
  * @see com.alibaba.dubbo.registry.RegistryService#subscribe(URL, NotifyListener)
  */
 public interface NotifyListener {
-
+    /**
+     * @desc 当收到服务变更通知时触发
+     * 1.总是以服务接口和数据类型为维度全量通知，即不会通知一个服务的同类型的部分数据，用户不需要对比上一次通知结果。
+     * 2.订阅时的第一次通知，必须是一个服务的所有类型的全量通知。
+     * 3.中途变更时，允许不同类型的数据分开通知，比如：providers，consumers，routers，overrides，允许只通知其中一种类型数据，但是该类型的数据必须是全量的，不是增量的。
+     * 4.如果一种类型的数据为空，需通知一个empty协议并带category参数的标识性URL数据
+     * 5.通知者（即注册中心实现）需保证通知的顺序，比如：单线程推送，队列串行化，带版本对比。
+     *
+     * @param urls 已注册信息列表，总不为空，含义同{@link com.alibaba.dubbo.registry.RegistryService#lookup(URL)}的返回值
+     */
     /**
      * Triggered when a service change notification is received.
      * <p>
