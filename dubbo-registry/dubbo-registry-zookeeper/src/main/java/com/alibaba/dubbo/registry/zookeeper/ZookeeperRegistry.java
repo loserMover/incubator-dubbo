@@ -108,10 +108,17 @@ public class ZookeeperRegistry extends FailbackRegistry {
         return address;
     }
 
+    /**
+     * @desc 是否连接
+     * @return
+     */
     public boolean isAvailable() {
         return zkClient.isConnected();
     }
 
+    /**
+     * @desc 取消订阅和注册
+     */
     public void destroy() {
         super.destroy();
         try {
@@ -195,7 +202,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
                     }
                 }
             } else { // 处理指定 Service 层的发起订阅，例如服务消费者的订阅
-                //子节点数据数组
+                //子节点数据数组，即Service层下的所有URL
                 List<URL> urls = new ArrayList<URL>();
                 //循环分类数组
                 for (String path : toCategoriesPath(url)) {
@@ -209,7 +216,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
                     if (zkListener == null) {// 不存在 ChildListener 对象，进行创建 ChildListener 对象
                         listeners.putIfAbsent(listener, new ChildListener() {
                             public void childChanged(String parentPath, List<String> currentChilds) {
-                                //变更时，调用‘#notify(...)’方法，回调NotifyListener
+                                //URL变更时，调用‘#notify(...)’方法，回调NotifyListener(增量)
                                 ZookeeperRegistry.this.notify(url, listener, toUrlsWithEmpty(url, parentPath, currentChilds));
                             }
                         });
@@ -237,23 +244,32 @@ public class ZookeeperRegistry extends FailbackRegistry {
         if (listeners != null) {
             ChildListener zkListener = listeners.get(listener);
             if (zkListener != null) {
+                //向Zookeeper移除订阅
                 zkClient.removeChildListener(toUrlPath(url), zkListener);
             }
         }
     }
 
+    /**
+     * @desc 查询符合条件的已注册数据，与订阅的推模式相对应，这里为拉模式，只返回一次结果
+     * @param url 查询条件，不允许为空，如：consumer://10.20.153.10/com.alibaba.demo.DemoService?version=2.0.0&application=demo-service
+     * @return 已注册信息列表，可能为空，含义同{@link com.alibaba.dubbo.registry.NotifyListener#notify(List)}的参数
+     * @see com.alibaba.dubbo.registry.NotifyListener#notify(List)
+     */
     public List<URL> lookup(URL url) {
         if (url == null) {
             throw new IllegalArgumentException("lookup url == null");
         }
         try {
             List<String> providers = new ArrayList<String>();
+            //循环分类数组，获得所有的URL数组
             for (String path : toCategoriesPath(url)) {
                 List<String> children = zkClient.getChildren(path);
                 if (children != null) {
                     providers.addAll(children);
                 }
             }
+            //匹配
             return toUrlsWithoutEmpty(url, providers);
         } catch (Throwable e) {
             throw new RpcException("Failed to lookup " + url + " from zookeeper " + getUrl() + ", cause: " + e.getMessage(), e);
@@ -301,14 +317,24 @@ public class ZookeeperRegistry extends FailbackRegistry {
         return toRootDir() + URL.encode(name);
     }
 
+    /**
+     * @desc 获得分类路径数组
+     *
+     * Root+Service+Type
+     *
+     * @param url URL
+     * @return 分类路径数组
+     */
     private String[] toCategoriesPath(URL url) {
+        //获得分类数组
         String[] categories;
-        if (Constants.ANY_VALUE.equals(url.getParameter(Constants.CATEGORY_KEY))) {
+        if (Constants.ANY_VALUE.equals(url.getParameter(Constants.CATEGORY_KEY))) {//*时
             categories = new String[]{Constants.PROVIDERS_CATEGORY, Constants.CONSUMERS_CATEGORY,
                     Constants.ROUTERS_CATEGORY, Constants.CONFIGURATORS_CATEGORY};
         } else {
             categories = url.getParameter(Constants.CATEGORY_KEY, new String[]{Constants.DEFAULT_CATEGORY});
         }
+        //获得分类路径数组
         String[] paths = new String[categories.length];
         for (int i = 0; i < categories.length; i++) {
             paths[i] = toServicePath(url) + Constants.PATH_SEPARATOR + categories[i];
@@ -342,14 +368,20 @@ public class ZookeeperRegistry extends FailbackRegistry {
         return toCategoryPath(url) + Constants.PATH_SEPARATOR + URL.encode(url.toFullString());
     }
 
+    /**
+     * @desc 获得providers中和consumer匹配的URL数组
+     * @param consumer 用于匹配URL
+     * @param providers 被匹配的URL字符串
+     * @return 匹配的URL数组
+     */
     private List<URL> toUrlsWithoutEmpty(URL consumer, List<String> providers) {
         List<URL> urls = new ArrayList<URL>();
         if (providers != null && !providers.isEmpty()) {
             for (String provider : providers) {
                 provider = URL.decode(provider);
-                if (provider.contains("://")) {
-                    URL url = URL.valueOf(provider);
-                    if (UrlUtils.isMatch(consumer, url)) {
+                if (provider.contains("://")) { //是url
+                    URL url = URL.valueOf(provider);//将字符串转化成URL
+                    if (UrlUtils.isMatch(consumer, url)) {//匹配
                         urls.add(url);
                     }
                 }
@@ -358,8 +390,20 @@ public class ZookeeperRegistry extends FailbackRegistry {
         return urls;
     }
 
+    /**
+     * @desc 获得providers中和consumer匹配的URL数组
+     *
+     * 若不存在匹配，则创建'empty://'的URL返回，通过这样的方式，可以处理类似服务提供者为空的情况。
+     *
+     * @param consumer 用户匹配的URL
+     * @param path 被匹配的URL的字符串
+     * @param providers 匹配的URL数组
+     * @return 匹配的URL数组
+     */
     private List<URL> toUrlsWithEmpty(URL consumer, String path, List<String> providers) {
+        //获得providers中和consumer匹配的URL数组
         List<URL> urls = toUrlsWithoutEmpty(consumer, providers);
+        //若不存在匹配，则创建'empty://'的URL返回
         if (urls == null || urls.isEmpty()) {
             int i = path.lastIndexOf('/');
             String category = i < 0 ? path : path.substring(i + 1);
