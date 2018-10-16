@@ -57,27 +57,53 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class RedisRegistry extends FailbackRegistry {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisRegistry.class);
-
+    /**
+     * @desc 默认端口
+     */
     private static final int DEFAULT_REDIS_PORT = 6379;
-
+    /**
+     * @desc 默认根路径
+     */
     private final static String DEFAULT_ROOT = "dubbo";
-
+    /**
+     * @desc Redis Key过期机制执行器
+     */
     private final ScheduledExecutorService expireExecutor = Executors.newScheduledThreadPool(1, new NamedThreadFactory("DubboRegistryExpireTimer", true));
-
+    /**
+     * @desc Redis Key过期机制Future
+     */
     private final ScheduledFuture<?> expireFuture;
-
+    /**
+     * @desc Redis根节点
+     */
     private final String root;
-
+    /**
+     * @desc JedisPool集合
+     */
     private final Map<String, JedisPool> jedisPools = new ConcurrentHashMap<String, JedisPool>();
-
+    /**
+     * @desc 通知器集合
+     *
+     * key:Root+Service, 例如：‘/dubbo/com.alibaba.dubbo.demo.DemoService’
+     */
     private final ConcurrentMap<String, Notifier> notifiers = new ConcurrentHashMap<String, Notifier>();
-
+    /**
+     * @desc 重连周期，单位：毫秒
+     */
     private final int reconnectPeriod;
-
+    /**
+     * @desc 过期周期，单位：毫秒
+     */
     private final int expirePeriod;
-
+    /**
+     * @desc 是否监控中心
+     *
+     * 用于判断脏数据，脏数据由监控中心删除{@link #clean(Jedis)}
+     */
     private volatile boolean admin = false;
-
+    /**
+     * @desc 是否复制模式
+     */
     private boolean replicate;
 
     public RedisRegistry(URL url) {
@@ -85,6 +111,7 @@ public class RedisRegistry extends FailbackRegistry {
         if (url.isAnyHost()) {
             throw new IllegalStateException("registry address == null");
         }
+        //创建GenericObjectPoolConfig对象
         GenericObjectPoolConfig config = new GenericObjectPoolConfig();
         config.setTestOnBorrow(url.getParameter("test.on.borrow", true));
         config.setTestOnReturn(url.getParameter("test.on.return", false));
@@ -105,20 +132,20 @@ public class RedisRegistry extends FailbackRegistry {
             config.setTimeBetweenEvictionRunsMillis(url.getParameter("time.between.eviction.runs.millis", 0));
         if (url.getParameter("min.evictable.idle.time.millis", 0) > 0)
             config.setMinEvictableIdleTimeMillis(url.getParameter("min.evictable.idle.time.millis", 0));
-
+        //是否复制模式
         String cluster = url.getParameter("cluster", "failover");
         if (!"failover".equals(cluster) && !"replicate".equals(cluster)) {
             throw new IllegalArgumentException("Unsupported redis cluster: " + cluster + ". The redis cluster only supported failover or replicate.");
         }
         replicate = "replicate".equals(cluster);
-
+        //解析
         List<String> addresses = new ArrayList<String>();
         addresses.add(url.getAddress());
         String[] backups = url.getParameter(Constants.BACKUP_KEY, new String[0]);
         if (backups != null && backups.length > 0) {
             addresses.addAll(Arrays.asList(backups));
         }
-
+        //创建JedisPool对象
         String password = url.getPassword();
         for (String address : addresses) {
             int i = address.indexOf(':');
@@ -132,24 +159,27 @@ public class RedisRegistry extends FailbackRegistry {
                 port = DEFAULT_REDIS_PORT;
             }
             if (StringUtils.isEmpty(password)) {
-                this.jedisPools.put(address, new JedisPool(config, host, port,
+                this.jedisPools.put(address, new JedisPool(config, host, port,//无密码连接
                         url.getParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT)));
             } else {
-                this.jedisPools.put(address, new JedisPool(config, host, port,
+                this.jedisPools.put(address, new JedisPool(config, host, port,//有密码连接
                         url.getParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT), password));
             }
         }
-
+        //解析重连周期 ，默认3*1000ms
         this.reconnectPeriod = url.getParameter(Constants.REGISTRY_RECONNECT_PERIOD_KEY, Constants.DEFAULT_REGISTRY_RECONNECT_PERIOD);
+        //获得Redis根节点
         String group = url.getParameter(Constants.GROUP_KEY, DEFAULT_ROOT);
-        if (!group.startsWith(Constants.PATH_SEPARATOR)) {
+        //组转成'/dubbo/'
+        if (!group.startsWith(Constants.PATH_SEPARATOR)) {//头'/'
             group = Constants.PATH_SEPARATOR + group;
         }
-        if (!group.endsWith(Constants.PATH_SEPARATOR)) {
+        if (!group.endsWith(Constants.PATH_SEPARATOR)) {//尾'/'
             group = group + Constants.PATH_SEPARATOR;
         }
+        //设置为根节点
         this.root = group;
-
+        //创建实现Redis Key过期机制的任务，默认60*1000ms
         this.expirePeriod = url.getParameter(Constants.SESSION_TIMEOUT_KEY, Constants.DEFAULT_SESSION_TIMEOUT);
         this.expireFuture = expireExecutor.scheduleWithFixedDelay(new Runnable() {
             public void run() {
