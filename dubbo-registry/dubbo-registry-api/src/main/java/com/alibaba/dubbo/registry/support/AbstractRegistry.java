@@ -91,7 +91,7 @@ public abstract class AbstractRegistry implements Registry {
      */
     private final Set<URL> registered = new ConcurrentHashSet<URL>();
     /**
-     * @desc 订阅URL的监听器结合
+     * @desc 订阅URL的监听器集合
      *
      * key：消费者的URL
      */
@@ -160,6 +160,10 @@ public abstract class AbstractRegistry implements Registry {
         return registered;
     }
 
+    /**
+     * @desc 获得订阅URL的监听器集合
+     * @return
+     */
     public Map<URL, Set<NotifyListener>> getSubscribed() {
         return subscribed;
     }
