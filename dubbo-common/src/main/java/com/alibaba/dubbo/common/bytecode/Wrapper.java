@@ -36,6 +36,11 @@ import java.util.regex.Matcher;
  * Wrapper.
  */
 public abstract class Wrapper {
+    /**
+     * @desc 对象缓存
+     * key：Wrapper类
+     * value：Proxy对象
+     */
     private static final Map<Class<?>, Wrapper> WRAPPER_MAP = new ConcurrentHashMap<Class<?>, Wrapper>(); //class wrapper map
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
     private static final String[] OBJECT_METHODS = new String[]{"getClass", "hashCode", "toString", "equals"};
@@ -84,17 +89,21 @@ public abstract class Wrapper {
     /**
      * get wrapper.
      *
+     * 根据指定类，获得Wrapper对象
+     *
      * @param c Class instance.
      * @return Wrapper instance(not null).
      */
     public static Wrapper getWrapper(Class<?> c) {
+        //判断是否继承ClassGenerator.DC.class,如果是，拿到父类，避免重复包装
         while (ClassGenerator.isDynamicClass(c)) // can not wrapper on dynamic class.
             c = c.getSuperclass();
-
+        //指定类为Object.class
         if (c == Object.class)
             return OBJECT_WRAPPER;
-
+        //从缓存中获得Wrapper对象
         Wrapper ret = WRAPPER_MAP.get(c);
+        //创建Wrapper对象，并添加到缓存
         if (ret == null) {
             ret = makeWrapper(c);
             WRAPPER_MAP.put(c, ret);
@@ -103,52 +112,63 @@ public abstract class Wrapper {
     }
 
     private static Wrapper makeWrapper(Class<?> c) {
+        //非私有类
         if (c.isPrimitive())
             throw new IllegalArgumentException("Can not create wrapper for primitive type: " + c);
-
+        //类名
         String name = c.getName();
+        //类加载器
         ClassLoader cl = ClassHelper.getClassLoader(c);
-
+        //设置属性方法'#setPropertyValue(o,n,v)'的开头的代码
         StringBuilder c1 = new StringBuilder("public void setPropertyValue(Object o, String n, Object v){ ");
+        //获得属性方法'#getPropertyValue(o,n)'的开头的代码
         StringBuilder c2 = new StringBuilder("public Object getPropertyValue(Object o, String n){ ");
+        //调用方法'#invokerMethod(o,n,p,v)'的开头的代码
         StringBuilder c3 = new StringBuilder("public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws " + InvocationTargetException.class.getName() + "{ ");
-
+        //添加每个方法的，被调用对象的类型转换的代码
         c1.append(name).append(" w; try{ w = ((").append(name).append(")$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }");
         c2.append(name).append(" w; try{ w = ((").append(name).append(")$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }");
         c3.append(name).append(" w; try{ w = ((").append(name).append(")$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }");
-
+        //属性名与属性名的集合，用于'#hasProperty(...)','#setPropertyValue(...)','#getPropertyValue(...)'方法。
         Map<String, Class<?>> pts = new HashMap<String, Class<?>>(); // <property name, property types>
+        //方法签名与方法对象的集合，用于'#invokerMethod(...)'方法
         Map<String, Method> ms = new LinkedHashMap<String, Method>(); // <method desc, Method instance>
+        //方法名数组用于'#getMethodNames()'方法
         List<String> mns = new ArrayList<String>(); // method names.
+        //定义的方法名数组，用于'#getDeclaredMethodNames()'方法
         List<String> dmns = new ArrayList<String>(); // declaring method names.
-
+        //循环public属性，添加每个属性的设置和获得分别到'#setPropertyValue(o,n,v)'和'#getPropertyValue(o,n)'的代码
         // get all public field.
         for (Field f : c.getFields()) {
             String fn = f.getName();
             Class<?> ft = f.getType();
-            if (Modifier.isStatic(f.getModifiers()) || Modifier.isTransient(f.getModifiers()))
+            if (Modifier.isStatic(f.getModifiers()) || Modifier.isTransient(f.getModifiers()))//排除static 和 transient
                 continue;
 
             c1.append(" if( $2.equals(\"").append(fn).append("\") ){ w.").append(fn).append("=").append(arg(ft, "$3")).append("; return; }");
             c2.append(" if( $2.equals(\"").append(fn).append("\") ){ return ($w)w.").append(fn).append("; }");
+            //添加到'pts'中
             pts.put(fn, ft);
         }
 
         Method[] methods = c.getMethods();
+        //如果有方法，添加'#invokeMethod(o,n,p,v)'的try的代码
         // get all public method.
         boolean hasMethod = hasMethods(methods);
         if (hasMethod) {
             c3.append(" try{");
         }
         for (Method m : methods) {
+            //跳过来自Object的内置方法
             if (m.getDeclaringClass() == Object.class) //ignore Object's method.
                 continue;
 
             String mn = m.getName();
+            //使用方法名 + 方法参数长度来判断
             c3.append(" if( \"").append(mn).append("\".equals( $2 ) ");
             int len = m.getParameterTypes().length;
             c3.append(" && ").append(" $3.length == ").append(len);
-
+            //若相同方法名存在多个，增加参数类型数组的比较判断
             boolean override = false;
             for (Method m2 : methods) {
                 if (m != m2 && m.getName().equals(m2.getName())) {
@@ -166,27 +186,30 @@ public abstract class Wrapper {
             }
 
             c3.append(" ) { ");
-
+            //添加调用对象的对象方法的代码
             if (m.getReturnType() == Void.TYPE)
                 c3.append(" w.").append(mn).append('(').append(args(m.getParameterTypes(), "$4")).append(");").append(" return null;");
             else
                 c3.append(" return ($w)w.").append(mn).append('(').append(args(m.getParameterTypes(), "$4")).append(");");
 
             c3.append(" }");
-
+            //添加到'mns'中
             mns.add(mn);
+            //添加到'dmns'中
             if (m.getDeclaringClass() == c)
                 dmns.add(mn);
+            //添加到'ms'中
             ms.put(ReflectUtils.getDesc(m), m);
         }
+        //如果有方法，添加'#invokeMethod(o,n,p,v)'的catch的代码
         if (hasMethod) {
             c3.append(" } catch(Throwable e) { ");
             c3.append("     throw new java.lang.reflect.InvocationTargetException(e); ");
             c3.append(" }");
         }
-
+        //添加'#invokeMethod(o,n,p,v)'的未匹配到方法的代码
         c3.append(" throw new " + NoSuchMethodException.class.getName() + "(\"Not found method \\\"\"+$2+\"\\\" in class " + c.getName() + ".\"); }");
-
+        //循环setting/getting方法，添加每个属性的设置和获得分别到'#setPropertyValue(o,n,v)'和'#getPropertyValue(o,n)'的代码
         // deal with get/set method.
         Matcher matcher;
         for (Map.Entry<String, Method> entry : ms.entrySet()) {
@@ -195,15 +218,18 @@ public abstract class Wrapper {
             if ((matcher = ReflectUtils.GETTER_METHOD_DESC_PATTERN.matcher(md)).matches()) {
                 String pn = propertyName(matcher.group(1));
                 c2.append(" if( $2.equals(\"").append(pn).append("\") ){ return ($w)w.").append(method.getName()).append("(); }");
+                //添加到'pts'中
                 pts.put(pn, method.getReturnType());
             } else if ((matcher = ReflectUtils.IS_HAS_CAN_METHOD_DESC_PATTERN.matcher(md)).matches()) {
                 String pn = propertyName(matcher.group(1));
                 c2.append(" if( $2.equals(\"").append(pn).append("\") ){ return ($w)w.").append(method.getName()).append("(); }");
+                //添加到'pts'中
                 pts.put(pn, method.getReturnType());
-            } else if ((matcher = ReflectUtils.SETTER_METHOD_DESC_PATTERN.matcher(md)).matches()) {
+            } else if ((matcher = ReflectUtils.SETTER_METHOD_DESC_PATTERN.matcher(md)).matches()) {// 不支持 public T setName(String name) { this.name = name; return this;} 这种返回 this 的形式。
                 Class<?> pt = method.getParameterTypes()[0];
                 String pn = propertyName(matcher.group(1));
                 c1.append(" if( $2.equals(\"").append(pn).append("\") ){ w.").append(method.getName()).append("(").append(arg(pt, "$3")).append("); return; }");
+                //添加到'pts'中
                 pts.put(pn, pt);
             }
         }
@@ -212,29 +238,47 @@ public abstract class Wrapper {
 
         // make class
         long id = WRAPPER_CLASS_COUNTER.getAndIncrement();
+        //创建ClassGenerator对象
         ClassGenerator cc = ClassGenerator.newInstance(cl);
+        //设置类名
         cc.setClassName((Modifier.isPublic(c.getModifiers()) ? Wrapper.class.getName() : c.getName() + "$sw") + id);
+        //设置父类为Wrapper.class
         cc.setSuperClass(Wrapper.class);
-
+        //添加构造方法，参数空
         cc.addDefaultConstructor();
+        //添加静态属性'pns'的代码
         cc.addField("public static String[] pns;"); // property name array.
+        //添加静态属性'pts'的代码
         cc.addField("public static " + Map.class.getName() + " pts;"); // property type map.
+        //添加静态属性'pts'的代码
         cc.addField("public static String[] mns;"); // all method name array.
+        //添加静态属性'dms'的代码
         cc.addField("public static String[] dmns;"); // declared method name array.
+        //添加静态属性'mts'的代码，每个方法的参数数组
         for (int i = 0, len = ms.size(); i < len; i++)
             cc.addField("public static Class[] mts" + i + ";");
-
+        // ======= 添加抽象方法的实现，到 `cc` 中
+        // 添加 `#getPropertyNames()` 的代码到 `cc`
         cc.addMethod("public String[] getPropertyNames(){ return pns; }");
+        // 添加 `#hasProperty(n)` 的代码到 `cc`
         cc.addMethod("public boolean hasProperty(String n){ return pts.containsKey($1); }");
+        // 添加 `#getPropertyType(n)` 的代码到 `cc`
         cc.addMethod("public Class getPropertyType(String n){ return (Class)pts.get($1); }");
+        // 添加 `#getMethodNames()` 的代码到 `cc`
         cc.addMethod("public String[] getMethodNames(){ return mns; }");
+        // 添加 `#getDeclaredMethodNames()` 的代码到 `cc`
         cc.addMethod("public String[] getDeclaredMethodNames(){ return dmns; }");
+        // 添加 `#setPropertyValue(o, n, v)` 的代码到 `cc`
         cc.addMethod(c1.toString());
+        // 添加 `#getPropertyValue(o, n)` 的代码到 `cc`
         cc.addMethod(c2.toString());
+        // 添加 `#invokeMethod(o, n, p, v)` 的代码到 `cc`
         cc.addMethod(c3.toString());
 
         try {
+            // 生成类
             Class<?> wc = cc.toClass();
+            // 反射，设置静态变量的值
             // setup static field.
             wc.getField("pts").set(null, pts);
             wc.getField("pns").set(null, pts.keySet().toArray(new String[0]));
@@ -243,12 +287,14 @@ public abstract class Wrapper {
             int ix = 0;
             for (Method m : ms.values())
                 wc.getField("mts" + ix++).set(null, m.getParameterTypes());
+            // 创建对象
             return (Wrapper) wc.newInstance();
         } catch (RuntimeException e) {
             throw e;
         } catch (Throwable e) {
             throw new RuntimeException(e.getMessage(), e);
         } finally {
+            //释放资源
             cc.release();
             ms.clear();
             mns.clear();
@@ -406,11 +452,15 @@ public abstract class Wrapper {
     /**
      * invoke method.
      *
+     * 调用方法
+     *
      * @param instance instance.
+     *                 被调用的对象
      * @param mn       method name.
-     * @param types
-     * @param args     argument array.
-     * @return return value.
+     *                 方法名
+     * @param types 参数类型数组
+     * @param args     argument array 参数数组.
+     * @return return value. 返回值
      */
     abstract public Object invokeMethod(Object instance, String mn, Class<?>[] types, Object[] args) throws NoSuchMethodException, InvocationTargetException;
 }
