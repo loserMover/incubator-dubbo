@@ -40,6 +40,13 @@ public final class DubboCountCodec implements Codec2 {
         codec.encode(channel, buffer, msg);
     }
 
+    /**
+     * 解码 1）多消息解析的支持。2）记录每条消息的长度，用于 MonitorFilter 监控
+     * @param channel 通道处理器
+     * @param buffer 缓冲区buffer
+     * @return
+     * @throws IOException
+     */
     public Object decode(Channel channel, ChannelBuffer buffer) throws IOException {
         //记录当前读位置
         int save = buffer.readerIndex();
@@ -75,14 +82,14 @@ public final class DubboCountCodec implements Codec2 {
         if (bytes <= 0) {
             return;
         }
-        if (result instanceof Request) {
+        if (result instanceof Request) { //请求
             try {
                 ((RpcInvocation) ((Request) result).getData()).setAttachment(
                         Constants.INPUT_KEY, String.valueOf(bytes));
             } catch (Throwable e) {
                 /* ignore */
             }
-        } else if (result instanceof Response) {
+        } else if (result instanceof Response) { //响应
             try {
                 ((RpcResult) ((Response) result).getResult()).setAttachment(
                         Constants.OUTPUT_KEY, String.valueOf(bytes));

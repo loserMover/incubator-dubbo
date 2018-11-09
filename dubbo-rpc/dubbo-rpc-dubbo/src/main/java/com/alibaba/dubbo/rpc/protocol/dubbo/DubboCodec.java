@@ -60,11 +60,11 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
      */
     public static final byte RESPONSE_WITH_EXCEPTION = 0;
     /**
-     * 响应 - 政策（有返回）
+     * 响应 - 正常（有返回）
      */
     public static final byte RESPONSE_VALUE = 1;
     /**
-     * 响应 - 政策（空返回）
+     * 响应 - 正常（空返回）
      */
     public static final byte RESPONSE_NULL_VALUE = 2;
     /**
@@ -90,7 +90,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
         //获得Serialization对象
         byte proto = (byte) (flag & SERIALIZATION_MASK);
         Serialization s = CodecSupport.getSerialization(channel.getUrl(), proto);
-        //获得请求\\响应编号
+        //获得请求||响应编号
         // get request id.
         long id = Bytes.bytes2long(header, 4);
         //解析响应
@@ -255,7 +255,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
             //空返回
             if (ret == null) {
                 out.writeByte(RESPONSE_NULL_VALUE);
-                //又返回
+                //有值返回
             } else {
                 out.writeByte(RESPONSE_VALUE);
                 out.writeObject(ret);
