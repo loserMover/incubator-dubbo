@@ -134,8 +134,25 @@ public abstract class AbstractProxyProtocol extends AbstractProtocol {
         return RpcException.UNKNOWN_EXCEPTION;
     }
 
+    /**
+     * 执行服务暴露，并返回取消暴露的回调Runable
+     * @param impl 服务Proxy对象
+     * @param type 服务接口
+     * @param url URL
+     * @param <T> 服务接口
+     * @return 取消暴露的回调Runable
+     * @throws RpcException 异常
+     */
     protected abstract <T> Runnable doExport(T impl, Class<T> type, URL url) throws RpcException;
 
+    /**
+     * 执行引用，并返回调用远程服务的Service对象
+     * @param type 服务接口
+     * @param url URL
+     * @param <T> 服务接口
+     * @return 调用远程服务的
+     * @throws RpcException
+     */
     protected abstract <T> T doRefer(Class<T> type, URL url) throws RpcException;
 
 }
