@@ -44,13 +44,27 @@ import java.util.concurrent.ConcurrentHashMap;
  * HttpProtocol
  */
 public class HttpProtocol extends AbstractProxyProtocol {
-
+    /**
+     * 默认服务端口
+     */
     public static final int DEFAULT_PORT = 80;
-
+    /**
+     * Http 服务器集合
+     *
+     * key：ip:port
+     */
     private final Map<String, HttpServer> serverMap = new ConcurrentHashMap<String, HttpServer>();
-
+    /**
+     * spring HttpInvokerServiceExporter集合
+     *
+     * 请求处理过程为 HttpServer => DispatcherServlet => InternalHandler => HttpInvokerServiceExporter
+     *
+     * key：path 服务名
+     */
     private final Map<String, HttpInvokerServiceExporter> skeletonMap = new ConcurrentHashMap<String, HttpInvokerServiceExporter>();
-
+    /**
+     * HttpBinder$Adaptive对象
+     */
     private HttpBinder httpBinder;
 
     public HttpProtocol() {
@@ -66,12 +80,15 @@ public class HttpProtocol extends AbstractProxyProtocol {
     }
 
     protected <T> Runnable doExport(final T impl, Class<T> type, URL url) throws RpcException {
+        //获取服务器地址
         String addr = getAddr(url);
+        //获得HttpServer对象，若不存在，则进行穿件
         HttpServer server = serverMap.get(addr);
         if (server == null) {
-            server = httpBinder.bind(url, new InternalHandler());
+            server = httpBinder.bind(url, new InternalHandler());//InernalHandler
             serverMap.put(addr, server);
         }
+        //创建HttpInvokerServiceExporter对象
         final HttpInvokerServiceExporter httpServiceExporter = new HttpInvokerServiceExporter();
         httpServiceExporter.setServiceInterface(type);
         httpServiceExporter.setService(impl);
@@ -80,8 +97,10 @@ public class HttpProtocol extends AbstractProxyProtocol {
         } catch (Exception e) {
             throw new RpcException(e.getMessage(), e);
         }
+        //添加到skeletonMap集合中
         final String path = url.getAbsolutePath();
         skeletonMap.put(path, httpServiceExporter);
+        //返回取消暴露回调Runnable
         return new Runnable() {
             public void run() {
                 skeletonMap.remove(path);
@@ -89,11 +108,21 @@ public class HttpProtocol extends AbstractProxyProtocol {
         };
     }
 
+    /**
+     * 执行引用，并返回调用远程服务的Service对象
+     * @param serviceType 服务接口
+     * @param url URL
+     * @param <T> 服务接口
+     * @return 调用远程服务的
+     * @throws RpcException
+     */
     @SuppressWarnings("unchecked")
     protected <T> T doRefer(final Class<T> serviceType, final URL url) throws RpcException {
+        //创建HttpInvokerProxyFactoryBean 对象
         final HttpInvokerProxyFactoryBean httpProxyFactoryBean = new HttpInvokerProxyFactoryBean();
         httpProxyFactoryBean.setServiceUrl(url.toIdentityString());
         httpProxyFactoryBean.setServiceInterface(serviceType);
+        //创建执行器SimpleHttpInvokerRequestExecutor对象（使用JDK HttpClient）
         String client = url.getParameter(Constants.CLIENT_KEY);
         if (client == null || client.length() == 0 || "simple".equals(client)) {
             SimpleHttpInvokerRequestExecutor httpInvokerRequestExecutor = new SimpleHttpInvokerRequestExecutor() {
@@ -106,6 +135,7 @@ public class HttpProtocol extends AbstractProxyProtocol {
             };
             httpProxyFactoryBean.setHttpInvokerRequestExecutor(httpInvokerRequestExecutor);
         } else if ("commons".equals(client)) {
+            // 创建执行器 HttpComponentsHttpInvokerRequestExecutor 对象 (使用Apache HttpClient)
             HttpComponentsHttpInvokerRequestExecutor httpInvokerRequestExecutor = new HttpComponentsHttpInvokerRequestExecutor();
             httpInvokerRequestExecutor.setReadTimeout(url.getParameter(Constants.CONNECT_TIMEOUT_KEY, Constants.DEFAULT_CONNECT_TIMEOUT));
             httpProxyFactoryBean.setHttpInvokerRequestExecutor(httpInvokerRequestExecutor);
@@ -113,9 +143,15 @@ public class HttpProtocol extends AbstractProxyProtocol {
             throw new IllegalStateException("Unsupported http protocol client " + client + ", only supported: simple, commons");
         }
         httpProxyFactoryBean.afterPropertiesSet();
+        // 返回 HttpInvokerProxyFactoryBean 对象
         return (T) httpProxyFactoryBean.getObject();
     }
 
+    /**
+     * 获得异常对应的错误码
+     * @param e
+     * @return
+     */
     protected int getErrorCode(Throwable e) {
         if (e instanceof RemoteAccessException) {
             e = e.getCause();
@@ -138,10 +174,13 @@ public class HttpProtocol extends AbstractProxyProtocol {
         public void handle(HttpServletRequest request, HttpServletResponse response)
                 throws IOException, ServletException {
             String uri = request.getRequestURI();
+            //获得HttpInvokerServiceExporter对象
             HttpInvokerServiceExporter skeleton = skeletonMap.get(uri);
+            //必须是POST请求
             if (!request.getMethod().equalsIgnoreCase("POST")) {
                 response.setStatus(500);
             } else {
+                //执行调用
                 RpcContext.getContext().setRemoteAddress(request.getRemoteAddr(), request.getRemotePort());
                 try {
                     skeleton.handleRequest(request, response);

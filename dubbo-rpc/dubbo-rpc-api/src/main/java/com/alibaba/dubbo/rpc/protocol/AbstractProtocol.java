@@ -43,7 +43,9 @@ public abstract class AbstractProtocol implements Protocol {
      * key：服务键{@link #serviceKey(URL)}或者{@link URL#getServiceKey()},不同协议会不同
      */
     protected final Map<String, Exporter<?>> exporterMap = new ConcurrentHashMap<String, Exporter<?>>();
-
+    /**
+     * Invoker集合
+      */
     //TODO SOFEREFENCE
     protected final Set<Invoker<?>> invokers = new ConcurrentHashSet<Invoker<?>>();
 

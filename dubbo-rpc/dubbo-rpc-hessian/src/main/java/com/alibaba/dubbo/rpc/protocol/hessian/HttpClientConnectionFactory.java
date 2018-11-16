@@ -30,7 +30,9 @@ import java.net.URL;
  * HttpClientConnectionFactory
  */
 public class HttpClientConnectionFactory implements HessianConnectionFactory {
-
+    /**
+     * Apache HttpClient
+     */
     private final HttpClient httpClient = new DefaultHttpClient();
 
     public void setHessianProxyFactory(HessianProxyFactory factory) {

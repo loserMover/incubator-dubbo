@@ -44,11 +44,21 @@ import java.util.concurrent.ConcurrentHashMap;
  * http rpc support.
  */
 public class HessianProtocol extends AbstractProxyProtocol {
-
+    /**
+     * Http 服务器集合
+     */
     private final Map<String, HttpServer> serverMap = new ConcurrentHashMap<String, HttpServer>();
-
+    /**
+     * Hessian HessianSkeleton集合
+     *
+     * HttpServer => DispatcherServlet => HessianHandler => HessianSkeleton
+     *
+     * key： path 服务名
+     */
     private final Map<String, HessianSkeleton> skeletonMap = new ConcurrentHashMap<String, HessianSkeleton>();
-
+    /**
+     * HttpBinder$Adaptive对象
+     */
     private HttpBinder httpBinder;
 
     public HessianProtocol() {
@@ -64,15 +74,19 @@ public class HessianProtocol extends AbstractProxyProtocol {
     }
 
     protected <T> Runnable doExport(T impl, Class<T> type, URL url) throws RpcException {
+        //获得服务器地址
         String addr = getAddr(url);
+        //获得HttpServer对象，若不存在，则进行创建
         HttpServer server = serverMap.get(addr);
         if (server == null) {
             server = httpBinder.bind(url, new HessianHandler());
             serverMap.put(addr, server);
         }
+        //添加到skeletonMap集合中
         final String path = url.getAbsolutePath();
         HessianSkeleton skeleton = new HessianSkeleton(impl, type);
         skeletonMap.put(path, skeleton);
+        //返回取消暴露的回调Runnable对象
         return new Runnable() {
             public void run() {
                 skeletonMap.remove(path);
@@ -82,20 +96,26 @@ public class HessianProtocol extends AbstractProxyProtocol {
 
     @SuppressWarnings("unchecked")
     protected <T> T doRefer(Class<T> serviceType, URL url) throws RpcException {
+        //创建HessianProxyFactory对象
         HessianProxyFactory hessianProxyFactory = new HessianProxyFactory();
+        //是否Hessian到请求
         boolean isHessian2Request = url.getParameter(Constants.HESSIAN2_REQUEST_KEY, Constants.DEFAULT_HESSIAN2_REQUEST);
         hessianProxyFactory.setHessian2Request(isHessian2Request);
+        //是否重新覆盖方法
         boolean isOverloadEnabled = url.getParameter(Constants.HESSIAN_OVERLOAD_METHOD_KEY, Constants.DEFAULT_HESSIAN_OVERLOAD_METHOD);
         hessianProxyFactory.setOverloadEnabled(isOverloadEnabled);
+        //创建连接器工厂为HttpClientConnectionFactory对象，即Apache HttpClient
         String client = url.getParameter(Constants.CLIENT_KEY, Constants.DEFAULT_HTTP_CLIENT);
         if ("httpclient".equals(client)) {
             hessianProxyFactory.setConnectionFactory(new HttpClientConnectionFactory());
         } else if (client != null && client.length() > 0 && !Constants.DEFAULT_HTTP_CLIENT.equals(client)) {
             throw new IllegalStateException("Unsupported http protocol client=\"" + client + "\"!");
         }
+        //设置超时时间
         int timeout = url.getParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);
         hessianProxyFactory.setConnectTimeout(timeout);
         hessianProxyFactory.setReadTimeout(timeout);
+        //创建ServiceProxy对象
         return (T) hessianProxyFactory.create(serviceType, url.setProtocol("http").toJavaURL(), Thread.currentThread().getContextClassLoader());
     }
 
@@ -114,8 +134,13 @@ public class HessianProtocol extends AbstractProxyProtocol {
         return super.getErrorCode(e);
     }
 
+    /**
+     * 销毁
+     */
     public void destroy() {
+        //执行父类销毁
         super.destroy();
+        //销毁所有HttpServer
         for (String key : new ArrayList<String>(serverMap.keySet())) {
             HttpServer server = serverMap.remove(key);
             if (server != null) {
@@ -136,10 +161,13 @@ public class HessianProtocol extends AbstractProxyProtocol {
         public void handle(HttpServletRequest request, HttpServletResponse response)
                 throws IOException, ServletException {
             String uri = request.getRequestURI();
+            //获得HessianSkeleton对象
+            //必须是POST请求
             HessianSkeleton skeleton = skeletonMap.get(uri);
             if (!request.getMethod().equalsIgnoreCase("POST")) {
                 response.setStatus(500);
             } else {
+                //执行调用
                 RpcContext.getContext().setRemoteAddress(request.getRemoteAddr(), request.getRemotePort());
                 try {
                     skeleton.invoke(request.getInputStream(), response.getOutputStream());
