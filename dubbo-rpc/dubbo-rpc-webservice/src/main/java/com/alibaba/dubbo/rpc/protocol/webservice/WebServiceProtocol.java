@@ -52,15 +52,29 @@ import java.util.concurrent.ConcurrentHashMap;
  * WebServiceProtocol.
  */
 public class WebServiceProtocol extends AbstractProxyProtocol {
-
+    /**
+     * 默认端口80
+     */
     public static final int DEFAULT_PORT = 80;
-
+    /**
+     * Http服务器集合
+     * key：ip:port
+     *
+     * HttpServer => DispatcherServlet => WebServiceHandler => ServletController
+     */
     private final Map<String, HttpServer> serverMap = new ConcurrentHashMap<String, HttpServer>();
-
+    /**
+     * 《我眼中的CXF之Bus》http://jnn.iteye.com/blog/94746
+     * 《CXF BUS》https://blog.csdn.net/chen_fly2011/article/details/56664908
+     */
     private final ExtensionManagerBus bus = new ExtensionManagerBus();
-
+    /**
+     * 传输工厂类
+     */
     private final HTTPTransportFactory transportFactory = new HTTPTransportFactory();
-
+    /**
+     * HttpBinder$Adaptive
+     */
     private HttpBinder httpBinder;
 
     public WebServiceProtocol() {
@@ -77,12 +91,15 @@ public class WebServiceProtocol extends AbstractProxyProtocol {
     }
 
     protected <T> Runnable doExport(T impl, Class<T> type, URL url) throws RpcException {
+        //获取服务器地址ip:port
         String addr = getAddr(url);
+        //获得HttpServer对象。若对象不存在则进行新建 调用 HttpBinder#bind(url, handler) 方法，创建 HttpServer 对象。此处使用的 WebServiceHandler
         HttpServer httpServer = serverMap.get(addr);
         if (httpServer == null) {
-            httpServer = httpBinder.bind(url, new WebServiceHandler());
+            httpServer = httpBinder.bind(url, new WebServiceHandler());//WebServiceHandler
             serverMap.put(addr, httpServer);
         }
+        //创建ServerFactoryBean对象
         final ServerFactoryBean serverFactoryBean = new ServerFactoryBean();
         serverFactoryBean.setAddress(url.getAbsolutePath());
         serverFactoryBean.setServiceClass(type);
@@ -90,6 +107,7 @@ public class WebServiceProtocol extends AbstractProxyProtocol {
         serverFactoryBean.setBus(bus);
         serverFactoryBean.setDestinationFactory(transportFactory);
         serverFactoryBean.create();
+        //返回取消暴露的回调Runnable
         return new Runnable() {
             public void run() {
                 serverFactoryBean.destroy();
@@ -130,6 +148,7 @@ public class WebServiceProtocol extends AbstractProxyProtocol {
         private volatile ServletController servletController;
 
         public void handle(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+            //创建ServletController对象，设置使用DispatcherServlet
             if (servletController == null) {
                 HttpServlet httpServlet = DispatcherServlet.getInstance();
                 if (httpServlet == null) {
@@ -142,7 +161,9 @@ public class WebServiceProtocol extends AbstractProxyProtocol {
                     }
                 }
             }
+            //设置调用方地址
             RpcContext.getContext().setRemoteAddress(request.getRemoteAddr(), request.getRemotePort());
+            //执行调用
             servletController.invoke(request, response);
         }
 

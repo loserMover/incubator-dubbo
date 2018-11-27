@@ -165,7 +165,7 @@ public abstract class AbstractProxyProtocol extends AbstractProtocol {
     }
 
     /**
-     * 获取服务器地址（IP:port）
+     * 获取服务器地址（IP:Port）
      * @param url
      * @return
      */
