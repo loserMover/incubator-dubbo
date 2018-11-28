@@ -37,7 +37,9 @@ import java.rmi.RemoteException;
  * RmiProtocol.
  */
 public class RmiProtocol extends AbstractProxyProtocol {
-
+    /**
+     * 默认端口
+     */
     public static final int DEFAULT_PORT = 1099;
 
     public RmiProtocol() {
@@ -49,6 +51,7 @@ public class RmiProtocol extends AbstractProxyProtocol {
     }
 
     protected <T> Runnable doExport(final T impl, Class<T> type, URL url) throws RpcException {
+        //创建RmiServiceExporter对象
         final RmiServiceExporter rmiServiceExporter = new RmiServiceExporter();
         rmiServiceExporter.setRegistryPort(url.getPort());
         rmiServiceExporter.setServiceName(url.getPath());
@@ -59,6 +62,7 @@ public class RmiProtocol extends AbstractProxyProtocol {
         } catch (RemoteException e) {
             throw new RpcException(e.getMessage(), e);
         }
+        //返回取消暴露的回调Runnable
         return new Runnable() {
             public void run() {
                 try {
@@ -72,8 +76,10 @@ public class RmiProtocol extends AbstractProxyProtocol {
 
     @SuppressWarnings("unchecked")
     protected <T> T doRefer(final Class<T> serviceType, final URL url) throws RpcException {
+        //创建RmiProxyFactoryBean对象
         final RmiProxyFactoryBean rmiProxyFactoryBean = new RmiProxyFactoryBean();
         // RMI needs extra parameter since it uses customized remote invocation object
+        //若远程服务是 Dubbo RMI 服务时，RMI 传输时使用自定义的远程执行对象，从而传递额外的参数
         if (url.getParameter(Constants.DUBBO_VERSION_KEY, Version.getVersion()).equals(Version.getVersion())) {
             // Check dubbo version on provider, this feature only support
             rmiProxyFactoryBean.setRemoteInvocationFactory(new RemoteInvocationFactory() {
@@ -82,6 +88,7 @@ public class RmiProtocol extends AbstractProxyProtocol {
                 }
             });
         }
+        //设置相关参数
         rmiProxyFactoryBean.setServiceUrl(url.toIdentityString());
         rmiProxyFactoryBean.setServiceInterface(serviceType);
         rmiProxyFactoryBean.setCacheStub(true);
@@ -91,6 +98,11 @@ public class RmiProtocol extends AbstractProxyProtocol {
         return (T) rmiProxyFactoryBean.getObject();
     }
 
+    /**
+     * 将异常转化成Dubbo异常码
+     * @param e
+     * @return
+     */
     protected int getErrorCode(Throwable e) {
         if (e instanceof RemoteAccessException) {
             e = e.getCause();

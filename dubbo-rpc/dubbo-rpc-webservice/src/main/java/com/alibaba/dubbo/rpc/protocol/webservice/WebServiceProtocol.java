@@ -117,11 +117,14 @@ public class WebServiceProtocol extends AbstractProxyProtocol {
 
     @SuppressWarnings("unchecked")
     protected <T> T doRefer(final Class<T> serviceType, final URL url) throws RpcException {
+        //创建ClientProxyFactoryBean对象
         ClientProxyFactoryBean proxyFactoryBean = new ClientProxyFactoryBean();
         proxyFactoryBean.setAddress(url.setProtocol("http").toIdentityString());
         proxyFactoryBean.setServiceClass(serviceType);
         proxyFactoryBean.setBus(bus);
+        //创建Service Proxy对象
         T ref = (T) proxyFactoryBean.create();
+        //设置超时相关属性
         Client proxy = ClientProxy.getClient(ref);
         HTTPConduit conduit = (HTTPConduit) proxy.getConduit();
         HTTPClientPolicy policy = new HTTPClientPolicy();
@@ -131,6 +134,11 @@ public class WebServiceProtocol extends AbstractProxyProtocol {
         return ref;
     }
 
+    /**
+     * 获得异常对应错误码，转化成Dubbo异常
+     * @param e
+     * @return
+     */
     protected int getErrorCode(Throwable e) {
         if (e instanceof Fault) {
             e = e.getCause();

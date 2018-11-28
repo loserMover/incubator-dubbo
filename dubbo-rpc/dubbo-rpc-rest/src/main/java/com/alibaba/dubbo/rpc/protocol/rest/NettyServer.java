@@ -36,17 +36,19 @@ public class NettyServer extends BaseRestServer {
     private final NettyJaxrsServer server = new NettyJaxrsServer();
 
     protected void doStart(URL url) {
+        //设置NettyJaxrsServer的属性
         String bindIp = url.getParameter(Constants.BIND_IP_KEY, url.getHost());
         if (!url.isAnyHost() && NetUtils.isValidLocalHost(bindIp)) {
-            server.setHostname(bindIp);
+            server.setHostname(bindIp);//Hostname
         }
-        server.setPort(url.getParameter(Constants.BIND_PORT_KEY, url.getPort()));
+        server.setPort(url.getParameter(Constants.BIND_PORT_KEY, url.getPort()));//port
         Map<ChannelOption, Object> channelOption = new HashMap<ChannelOption, Object>();
-        channelOption.put(ChannelOption.SO_KEEPALIVE, url.getParameter(Constants.KEEP_ALIVE_KEY, Constants.DEFAULT_KEEP_ALIVE));
+        channelOption.put(ChannelOption.SO_KEEPALIVE, url.getParameter(Constants.KEEP_ALIVE_KEY, Constants.DEFAULT_KEEP_ALIVE));//keep-Alive
         server.setChildChannelOptions(channelOption);
-        server.setExecutorThreadCount(url.getParameter(Constants.THREADS_KEY, Constants.DEFAULT_THREADS));
-        server.setIoWorkerCount(url.getParameter(Constants.IO_THREADS_KEY, Constants.DEFAULT_IO_THREADS));
+        server.setExecutorThreadCount(url.getParameter(Constants.THREADS_KEY, Constants.DEFAULT_THREADS));//执行线程数
+        server.setIoWorkerCount(url.getParameter(Constants.IO_THREADS_KEY, Constants.DEFAULT_IO_THREADS));//IO线程数
         server.setMaxRequestSize(url.getParameter(Constants.PAYLOAD_KEY, Constants.DEFAULT_PAYLOAD));
+        //启动NettyJaxrsServer
         server.start();
     }
 

@@ -25,20 +25,24 @@ import org.jboss.resteasy.spi.ResteasyDeployment;
 public abstract class BaseRestServer implements RestServer {
 
     public void start(URL url) {
+        //添加MediaType
         getDeployment().getMediaTypeMappings().put("json", "application/json");
         getDeployment().getMediaTypeMappings().put("xml", "text/xml");
 //        server.getDeployment().getMediaTypeMappings().put("xml", "application/xml");
+        //添加过滤器RpcContextFilter
         getDeployment().getProviderClasses().add(RpcContextFilter.class.getName());
         // TODO users can override this mapper, but we just rely on the current priority strategy of resteasy
+        //添加异常匹配RpcExceptionMapper
         getDeployment().getProviderClasses().add(RpcExceptionMapper.class.getName());
-
+        //从'extension'配置项，添加对应的组件(过滤器Filter、拦截器Interception、异常匹配器ExceptionMapper等等)
         loadProviders(url.getParameter(Constants.EXTENSION_KEY, ""));
-
+        //启动服务器
         doStart(url);
     }
 
     public void deploy(Class resourceDef, Object resourceInstance, String contextPath) {
         if (StringUtils.isEmpty(contextPath)) {
+            //部署 Service 服务。这里，如果类比 SpringMVC ，就是添加 @RestController 注解的类
             getDeployment().getRegistry().addResourceFactory(new DubboResourceFactory(resourceInstance, resourceDef));
         } else {
             getDeployment().getRegistry().addResourceFactory(new DubboResourceFactory(resourceInstance, resourceDef), contextPath);

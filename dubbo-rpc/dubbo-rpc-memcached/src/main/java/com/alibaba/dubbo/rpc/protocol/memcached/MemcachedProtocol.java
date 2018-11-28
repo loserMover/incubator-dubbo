@@ -42,19 +42,29 @@ import java.util.concurrent.TimeoutException;
  * MemcachedProtocol
  */
 public class MemcachedProtocol extends AbstractProtocol {
-
+    /**
+     * 默认端口
+     */
     public static final int DEFAULT_PORT = 11211;
 
     public int getDefaultPort() {
         return DEFAULT_PORT;
     }
 
+    /**
+     * 实际访问的就是 Memcached Server 实例，因此无需进行 Dubbo 服务暴露
+     * @param invoker 服务的执行体
+     * @param <T>
+     * @return
+     * @throws RpcException
+     */
     public <T> Exporter<T> export(final Invoker<T> invoker) throws RpcException {
         throw new UnsupportedOperationException("Unsupported export memcached service. url: " + invoker.getUrl());
     }
 
     public <T> Invoker<T> refer(final Class<T> type, final URL url) throws RpcException {
         try {
+            //创建MemcachedClient对象
             String address = url.getAddress();
             String backup = url.getParameter(Constants.BACKUP_KEY);
             if (backup != null && backup.length() > 0) {
@@ -62,6 +72,7 @@ public class MemcachedProtocol extends AbstractProtocol {
             }
             MemcachedClientBuilder builder = new XMemcachedClientBuilder(AddrUtil.getAddresses(address));
             final MemcachedClient memcachedClient = builder.build();
+            //处理方法名的映射
             final int expiry = url.getParameter("expiry", 0);
             final String get = url.getParameter("get", "get");
             final String set = url.getParameter("set", Map.class.equals(type) ? "put" : "set");
@@ -69,21 +80,25 @@ public class MemcachedProtocol extends AbstractProtocol {
             return new AbstractInvoker<T>(type, url) {
                 protected Result doInvoke(Invocation invocation) throws Throwable {
                     try {
+                        //Memcached get指令
                         if (get.equals(invocation.getMethodName())) {
                             if (invocation.getArguments().length != 1) {
                                 throw new IllegalArgumentException("The memcached get method arguments mismatch, must only one arguments. interface: " + type.getName() + ", method: " + invocation.getMethodName() + ", url: " + url);
                             }
+                            //执行并返回结果
                             return new RpcResult(memcachedClient.get(String.valueOf(invocation.getArguments()[0])));
-                        } else if (set.equals(invocation.getMethodName())) {
+                        } else if (set.equals(invocation.getMethodName())) {//Memcached put/set指令
                             if (invocation.getArguments().length != 2) {
                                 throw new IllegalArgumentException("The memcached set method arguments mismatch, must be two arguments. interface: " + type.getName() + ", method: " + invocation.getMethodName() + ", url: " + url);
                             }
+                            //执行并返回结果
                             memcachedClient.set(String.valueOf(invocation.getArguments()[0]), expiry, invocation.getArguments()[1]);
                             return new RpcResult();
-                        } else if (delete.equals(invocation.getMethodName())) {
+                        } else if (delete.equals(invocation.getMethodName())) {//Memcached delete指令
                             if (invocation.getArguments().length != 1) {
                                 throw new IllegalArgumentException("The memcached delete method arguments mismatch, must only one arguments. interface: " + type.getName() + ", method: " + invocation.getMethodName() + ", url: " + url);
                             }
+                            //执行并返回结果
                             memcachedClient.delete(String.valueOf(invocation.getArguments()[0]));
                             return new RpcResult();
                         } else {
@@ -101,8 +116,10 @@ public class MemcachedProtocol extends AbstractProtocol {
                 }
 
                 public void destroy() {
+                    //标记销毁
                     super.destroy();
                     try {
+                        //关闭MemcachedClient
                         memcachedClient.shutdown();
                     } catch (Throwable e) {
                         logger.warn(e.getMessage(), e);

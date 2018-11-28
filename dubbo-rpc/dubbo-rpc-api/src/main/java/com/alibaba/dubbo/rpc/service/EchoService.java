@@ -24,7 +24,7 @@ public interface EchoService {
 
     /**
      * echo test.
-     *
+     * 所有服务自动实现EchoService接口，只需将任意服务引用强制转型为EchoService即可使用
      * @param message message.
      * @return message.
      */

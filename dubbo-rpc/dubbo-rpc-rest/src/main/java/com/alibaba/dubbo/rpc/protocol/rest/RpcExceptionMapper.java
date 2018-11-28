@@ -27,10 +27,12 @@ import javax.ws.rs.ext.ExceptionMapper;
 public class RpcExceptionMapper implements ExceptionMapper<RpcException> {
 
     public Response toResponse(RpcException e) {
+        //参数不合法，拼接返回Response
         // TODO do more sophisticated exception handling and output
         if (e.getCause() instanceof ConstraintViolationException) {
             return handleConstraintViolationException((ConstraintViolationException) e.getCause());
         }
+        //普通Response返回
         // we may want to avoid exposing the dubbo exception details to certain clients
         // TODO for now just do plain text output
         return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Internal server error: " + e.getMessage()).type(ContentType.TEXT_PLAIN_UTF_8).build();
@@ -44,6 +46,7 @@ public class RpcExceptionMapper implements ExceptionMapper<RpcException> {
                     cv.getMessage(),
                     cv.getInvalidValue() == null ? "null" : cv.getInvalidValue().toString()));
         }
+        //目前仅返回xml格式，json需要自己扩展设置
         // TODO for now just do xml output
         return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(report).type(ContentType.TEXT_XML_UTF_8).build();
     }

@@ -37,10 +37,21 @@ import java.io.IOException;
 import java.util.Enumeration;
 
 public class DubboHttpServer extends BaseRestServer {
-
+    /**
+     * Resteasy HttpServletDispatcher
+     */
     private final HttpServletDispatcher dispatcher = new HttpServletDispatcher();
+    /**
+     * Resteasy ResteasyDeployment
+     */
     private final ResteasyDeployment deployment = new ResteasyDeployment();
+    /**
+     * Dubbo HttpBinder$Adaptive
+     */
     private HttpBinder httpBinder;
+    /**
+     * HttpServer对象
+     */
     private HttpServer httpServer;
 //    private boolean isExternalServer;
 
@@ -49,9 +60,10 @@ public class DubboHttpServer extends BaseRestServer {
     }
 
     protected void doStart(URL url) {
+        //创建HttpServer对象，使用RestHandler作为处理器
         // TODO jetty will by default enable keepAlive so the xml config has no effect now
         httpServer = httpBinder.bind(url, new RestHandler());
-
+        //获得ServletContext对象
         ServletContext servletContext = ServletManager.getInstance().getServletContext(url.getPort());
         if (servletContext == null) {
             servletContext = ServletManager.getInstance().getServletContext(ServletManager.EXTERNAL_SERVER_PORT);
@@ -60,9 +72,9 @@ public class DubboHttpServer extends BaseRestServer {
             throw new RpcException("No servlet context found. If you are using server='servlet', " +
                     "make sure that you've configured " + BootstrapListener.class.getName() + " in web.xml");
         }
-
-        servletContext.setAttribute(ResteasyDeployment.class.getName(), deployment);
-
+        //设置ResteasyDeployment
+        servletContext.setAttribute(ResteasyDeployment.class.getName(), deployment); // https://github.com/resteasy/Resteasy/blob/master/server-adapters/resteasy-undertow/src/main/java/org/jboss/resteasy/plugins/server/undertow/UndertowJaxrsServer.java#L74
+        //初始化Reasteasy HttpServletDispatcher
         try {
             dispatcher.init(new SimpleServletConfig(servletContext));
         } catch (ServletException e) {
@@ -81,7 +93,9 @@ public class DubboHttpServer extends BaseRestServer {
     private class RestHandler implements HttpHandler {
 
         public void handle(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+            //设置调用地址和端口
             RpcContext.getContext().setRemoteAddress(request.getRemoteAddr(), request.getRemotePort());
+            //调读请求
             dispatcher.service(request, response);
         }
     }
