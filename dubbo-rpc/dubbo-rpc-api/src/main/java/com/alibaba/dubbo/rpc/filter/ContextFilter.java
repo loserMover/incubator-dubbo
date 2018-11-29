@@ -30,12 +30,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * 在服务提供者中使用，负责被调用时，初始化 RpcContext
  * ContextInvokerFilter
  */
 @Activate(group = Constants.PROVIDER, order = -10000)
 public class ContextFilter implements Filter {
 
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //创建新的'attachments'集合，清理公用的隐式参数
         Map<String, String> attachments = invocation.getAttachments();
         if (attachments != null) {
             attachments = new HashMap<String, String>(attachments);
@@ -46,16 +48,18 @@ public class ContextFilter implements Filter {
             attachments.remove(Constants.TOKEN_KEY);
             attachments.remove(Constants.TIMEOUT_KEY);
             attachments.remove(Constants.ASYNC_KEY);// Remove async property to avoid being passed to the following invoke chain.
+                                                    //清空消费端的异步参数
         }
+        //设置RpcContext对象
         RpcContext.getContext()
                 .setInvoker(invoker)
                 .setInvocation(invocation)
 //                .setAttachments(attachments)  // merged from dubbox
                 .setLocalAddress(invoker.getUrl().getHost(),
                         invoker.getUrl().getPort());
-
         // mreged from dubbox
         // we may already added some attachments into RpcContext before this filter (e.g. in rest protocol)
+        //在此过滤器（例如rest协议）之前，我们可能已经在RpcContext中添加了一些附件
         if (attachments != null) {
             if (RpcContext.getContext().getAttachments() != null) {
                 RpcContext.getContext().getAttachments().putAll(attachments);
@@ -63,13 +67,15 @@ public class ContextFilter implements Filter {
                 RpcContext.getContext().setAttachments(attachments);
             }
         }
-
+        //设置RpcInvocation对象的'invoker'属性
         if (invocation instanceof RpcInvocation) {
             ((RpcInvocation) invocation).setInvoker(invoker);
         }
+        //执行Filter链，最终调用服务
         try {
             return invoker.invoke(invocation);
         } finally {
+            //移除上下文
             RpcContext.removeContext();
         }
     }

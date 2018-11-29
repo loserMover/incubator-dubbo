@@ -34,6 +34,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
+ * 上下文信息
+ * 上下文中存放的是当前调用过程中所需的环境信息。所有配置信息都将转换为 URL 的参数，参见 schema 配置参考手册 中的对应URL参数一列。
+ * RpcContext 是一个 ThreadLocal 的临时状态记录器，当接收到 RPC 请求，或发起 RPC 请求时，RpcContext 的状态都会变化比如：A 调 B，B 再调 C，则 B 机器上，
+ * 在 B 调 C 之前，RpcContext 记录的是 A 调 B 的信息，
+ * 在 B 调 C 之后，RpcContext 记录的是 B 调 C 的信息。
+ *
  * Thread local context. (API, ThreadLocal, ThreadSafe)
  * <p>
  * Note: RpcContext is a temporary state holder. States in RpcContext changes every time when request is sent or received.
@@ -44,40 +50,74 @@ import java.util.concurrent.TimeoutException;
  * @see com.alibaba.dubbo.rpc.filter.ContextFilter
  */
 public class RpcContext {
-
+    /**
+     * RpcContext线程变量
+     */
     private static final ThreadLocal<RpcContext> LOCAL = new ThreadLocal<RpcContext>() {
         @Override
         protected RpcContext initialValue() {
             return new RpcContext();
         }
     };
+    /**
+     * 隐式参数集合
+     */
     private final Map<String, String> attachments = new HashMap<String, String>();
+    /**
+     * 实际未使用
+     */
     private final Map<String, Object> values = new HashMap<String, Object>();
+    /**
+     * 异步调用Future
+     */
     private Future<?> future;
-
+    /**
+     * 可调用服务的URL对象集合
+     */
     private List<URL> urls;
-
+    /**
+     * 调用服务的URL对象
+     */
     private URL url;
-
+    /**
+     * 方法名
+     */
     private String methodName;
-
+    /**
+     * 参数类型数组
+     */
     private Class<?>[] parameterTypes;
-
+    /**
+     * 参数值数组
+     */
     private Object[] arguments;
-
+    /**
+     * 服务消费者地址
+     */
     private InetSocketAddress localAddress;
-
+    /**
+     * 服务提供者地址
+     */
     private InetSocketAddress remoteAddress;
-    @Deprecated
+    @Deprecated//DUBBO-325废弃的，使用urls属性替代
     private List<Invoker<?>> invokers;
-    @Deprecated
+    @Deprecated//DUBBO-325废弃的，使用url属性替代
     private Invoker<?> invoker;
-    @Deprecated
+    @Deprecated//DUBBO-325废弃的，使用methodName,parameterTypes,arguments属性替代
     private Invocation invocation;
-
+    /**
+     * 请求
+     *
+     * 例如，在RestProtocol
+     */
     // now we don't use the 'values' map to hold these objects
     // we want these objects to be as generic as possible
     private Object request;
+    /**
+     * 相应
+     *
+     * 例如，在RestProtocol
+     */
     private Object response;
 
     protected RpcContext() {

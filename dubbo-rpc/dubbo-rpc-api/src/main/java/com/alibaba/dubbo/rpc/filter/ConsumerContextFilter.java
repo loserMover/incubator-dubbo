@@ -34,18 +34,22 @@ import com.alibaba.dubbo.rpc.RpcInvocation;
 public class ConsumerContextFilter implements Filter {
 
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //设置RpcContext对象
         RpcContext.getContext()
                 .setInvoker(invoker)
                 .setInvocation(invocation)
                 .setLocalAddress(NetUtils.getLocalHost(), 0)
                 .setRemoteAddress(invoker.getUrl().getHost(),
                         invoker.getUrl().getPort());
+        //设置RpcInvocation对象的'invoker'属性
         if (invocation instanceof RpcInvocation) {
             ((RpcInvocation) invocation).setInvoker(invoker);
         }
+        //Filter链执行，最终调用服务
         try {
             return invoker.invoke(invocation);
         } finally {
+            //清理隐式参数集合
             RpcContext.getContext().clearAttachments();
         }
     }
