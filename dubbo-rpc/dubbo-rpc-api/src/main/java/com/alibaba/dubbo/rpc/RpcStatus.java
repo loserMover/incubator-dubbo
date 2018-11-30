@@ -33,24 +33,64 @@ import java.util.concurrent.atomic.AtomicLong;
  * @see com.alibaba.dubbo.rpc.cluster.loadbalance.LeastActiveLoadBalance
  */
 public class RpcStatus {
-
+    /**
+     * 基于服务URL未读的RpcStatus集合
+     *
+     * key：URL
+     */
     private static final ConcurrentMap<String, RpcStatus> SERVICE_STATISTICS = new ConcurrentHashMap<String, RpcStatus>();
-
+    /**
+     * 基于服务URL+方法未读的RpcStatus集合
+     *
+     * key1：URL
+     *key2：方法名
+     */
     private static final ConcurrentMap<String, ConcurrentMap<String, RpcStatus>> METHOD_STATISTICS = new ConcurrentHashMap<String, ConcurrentMap<String, RpcStatus>>();
+    /**
+     * 目前没有用到
+     */
     private final ConcurrentMap<String, Object> values = new ConcurrentHashMap<String, Object>();
+    /**
+     * 调用中的次数
+     */
     private final AtomicInteger active = new AtomicInteger();
+    /**
+     * 总调用的次数
+     */
     private final AtomicLong total = new AtomicLong();
+    /**
+     * 总调用失败次数
+     */
     private final AtomicInteger failed = new AtomicInteger();
+    /**
+     * 总调用时长，单位：毫秒
+     */
     private final AtomicLong totalElapsed = new AtomicLong();
+    /**
+     * 总调用失败时长，单位：毫秒
+     */
     private final AtomicLong failedElapsed = new AtomicLong();
+    /**
+     * 最大调用时长，单位：毫秒
+     */
     private final AtomicLong maxElapsed = new AtomicLong();
+    /**
+     * 最大调用失败时长，单位：毫秒
+     */
     private final AtomicLong failedMaxElapsed = new AtomicLong();
+    /**
+     * 最大调用成功时长，单位：毫秒
+     */
     private final AtomicLong succeededMaxElapsed = new AtomicLong();
 
     /**
      * Semaphore used to control concurrency limit set by `executes`
+     * 服务执行信号量，在{@link com.alibaba.dubbo.rpc.filter.ExecuteLimitFilter}中使用
      */
     private volatile Semaphore executesLimit;
+    /**
+     * 服务执行信号量大小
+     */
     private volatile int executesPermits;
 
     private RpcStatus() {
@@ -62,7 +102,9 @@ public class RpcStatus {
      */
     public static RpcStatus getStatus(URL url) {
         String uri = url.toIdentityString();
+        //获得RpcStatus
         RpcStatus status = SERVICE_STATISTICS.get(uri);
+        //不存在，则进行创建
         if (status == null) {
             SERVICE_STATISTICS.putIfAbsent(uri, new RpcStatus());
             status = SERVICE_STATISTICS.get(uri);
@@ -85,12 +127,16 @@ public class RpcStatus {
      */
     public static RpcStatus getStatus(URL url, String methodName) {
         String uri = url.toIdentityString();
+        //获得方法集合
         ConcurrentMap<String, RpcStatus> map = METHOD_STATISTICS.get(uri);
+        //不存在，创建方法集合
         if (map == null) {
             METHOD_STATISTICS.putIfAbsent(uri, new ConcurrentHashMap<String, RpcStatus>());
             map = METHOD_STATISTICS.get(uri);
         }
+        //获得RpcStatus对象
         RpcStatus status = map.get(methodName);
+        //不存在，创建RpcStatus对象
         if (status == null) {
             map.putIfAbsent(methodName, new RpcStatus());
             status = map.get(methodName);
