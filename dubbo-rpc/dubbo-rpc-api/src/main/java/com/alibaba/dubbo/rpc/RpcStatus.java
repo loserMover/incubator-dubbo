@@ -156,43 +156,64 @@ public class RpcStatus {
     }
 
     /**
-     * @param url
+     * 服务调用开始的计数
+     * @param url URL对象
+     * @param methodName 方法名
      */
     public static void beginCount(URL url, String methodName) {
+        //'SERVICE_STATISTICS'的计数
         beginCount(getStatus(url));
+        //'METHOD_STATISTICS'的计数
         beginCount(getStatus(url, methodName));
     }
 
+    /**
+     * 服务调用开始的计数
+     * @param status RpcStatus对象
+     */
     private static void beginCount(RpcStatus status) {
+        //调用中的次数
         status.active.incrementAndGet();
     }
 
     /**
-     * @param url
-     * @param elapsed
-     * @param succeeded
+     * 服务调用结束的计数
+     * @param url URL对象
+     * @param methodName 方法名
+     * @param elapsed 时长，单位：毫秒
+     * @param succeeded 是否成功
      */
     public static void endCount(URL url, String methodName, long elapsed, boolean succeeded) {
+        //'SERVICE_STATISTICS'的计数
         endCount(getStatus(url), elapsed, succeeded);
+        //'METHOD_STATISTICS'的计数
         endCount(getStatus(url, methodName), elapsed, succeeded);
     }
 
+    /**
+     * 服务调用结束的计数
+     * @param status RpcStatic 对象
+     * @param elapsed 时长 单位：毫秒
+     * @param succeeded 是否成功
+     */
     private static void endCount(RpcStatus status, long elapsed, boolean succeeded) {
+        //次数计数
         status.active.decrementAndGet();
         status.total.incrementAndGet();
         status.totalElapsed.addAndGet(elapsed);
+        //最大调用时长
         if (status.maxElapsed.get() < elapsed) {
             status.maxElapsed.set(elapsed);
         }
         if (succeeded) {
             if (status.succeededMaxElapsed.get() < elapsed) {
-                status.succeededMaxElapsed.set(elapsed);
+                status.succeededMaxElapsed.set(elapsed);//最大调用成功时长
             }
         } else {
-            status.failed.incrementAndGet();
-            status.failedElapsed.addAndGet(elapsed);
+            status.failed.incrementAndGet();//失败次数
+            status.failedElapsed.addAndGet(elapsed);//总调用失败时长
             if (status.failedMaxElapsed.get() < elapsed) {
-                status.failedMaxElapsed.set(elapsed);
+                status.failedMaxElapsed.set(elapsed);//最大调用失败时长
             }
         }
     }
@@ -359,6 +380,7 @@ public class RpcStatus {
     }
 
     /**
+     * 获取信号量
      * Get the semaphore for thread number. Semaphore's permits is decided by {@link Constants#EXECUTES_KEY}
      *
      * @param maxThreadNum value of {@link Constants#EXECUTES_KEY}
@@ -368,7 +390,7 @@ public class RpcStatus {
         if(maxThreadNum <= 0) {
             return null;
         }
-
+        //若信号量不存在，或者信号量executesPermits大小发生改变，创建新的信号量
         if (executesLimit == null || executesPermits != maxThreadNum) {
             synchronized (this) {
                 if (executesLimit == null || executesPermits != maxThreadNum) {
@@ -377,7 +399,6 @@ public class RpcStatus {
                 }
             }
         }
-
         return executesLimit;
     }
 }

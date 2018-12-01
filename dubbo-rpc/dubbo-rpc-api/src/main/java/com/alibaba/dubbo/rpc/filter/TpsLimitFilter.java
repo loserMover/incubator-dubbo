@@ -28,6 +28,7 @@ import com.alibaba.dubbo.rpc.filter.tps.DefaultTPSLimiter;
 import com.alibaba.dubbo.rpc.filter.tps.TPSLimiter;
 
 /**
+ * 用于服务提供者，提供限流功能
  * Limit TPS for either service or service's particular method
  */
 @Activate(group = Constants.PROVIDER, value = Constants.TPS_LIMIT_RATE_KEY)
@@ -47,7 +48,7 @@ public class TpsLimitFilter implements Filter {
                             .append(" because exceed max service tps.")
                             .toString());
         }
-
+        //继续执行Filter链，最终调用服务
         return invoker.invoke(invocation);
     }
 

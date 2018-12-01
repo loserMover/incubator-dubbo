@@ -23,31 +23,46 @@ import com.alibaba.dubbo.rpc.Invocation;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * 实现TPSLimiter接口，默认TPS限制器实现类，以服务为维度
+ */
 public class DefaultTPSLimiter implements TPSLimiter {
-
+    /**
+     * StatItem集合
+     *
+     * key：服务名
+     */
     private final ConcurrentMap<String, StatItem> stats
             = new ConcurrentHashMap<String, StatItem>();
 
     public boolean isAllowable(URL url, Invocation invocation) {
+        //获得TPS大小配置项
         int rate = url.getParameter(Constants.TPS_LIMIT_RATE_KEY, -1);
+        //获得TPS周期配置项（单位：毫秒），默认60秒
         long interval = url.getParameter(Constants.TPS_LIMIT_INTERVAL_KEY,
                 Constants.DEFAULT_TPS_LIMIT_INTERVAL);
+        //获得服务键
         String serviceKey = url.getServiceKey();
+        //限流
         if (rate > 0) {
+            //获得StatItem对象
             StatItem statItem = stats.get(serviceKey);
+            //若不存在，则进行创建
             if (statItem == null) {
                 stats.putIfAbsent(serviceKey,
                         new StatItem(serviceKey, rate, interval));
                 statItem = stats.get(serviceKey);
             }
+            //根据TPS限流规则判断是否限制此次调用
             return statItem.isAllowable();
         } else {
+            //移除StatItem
             StatItem statItem = stats.get(serviceKey);
             if (statItem != null) {
                 stats.remove(serviceKey);
             }
         }
-
+        //返回通过
         return true;
     }
 

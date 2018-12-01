@@ -29,13 +29,17 @@ import java.util.concurrent.ConcurrentMap;
  * AbstractCacheFactory
  */
 public abstract class AbstractCacheFactory implements CacheFactory {
-
+    /**
+     * cache集合
+     */
     private final ConcurrentMap<String, Cache> caches = new ConcurrentHashMap<String, Cache>();
 
     public Cache getCache(URL url, Invocation invocation) {
-        url = url.addParameter(Constants.METHOD_KEY, invocation.getMethodName());
+        //获得cache对象
+        url = url.addParameter(Constants.METHOD_KEY, invocation.getMethodName());//添加'method'属性，是因为JCache需要
         String key = url.toFullString();
         Cache cache = caches.get(key);
+        //不存在，创建Cache对象，并缓存 //为什么双重锁校验
         if (cache == null) {
             caches.put(key, createCache(url));
             cache = caches.get(key);
@@ -43,6 +47,11 @@ public abstract class AbstractCacheFactory implements CacheFactory {
         return cache;
     }
 
+    /**
+     * 创建Cache对象
+     * @param url URL对象
+     * @return Cache对象
+     */
     protected abstract Cache createCache(URL url);
 
 }

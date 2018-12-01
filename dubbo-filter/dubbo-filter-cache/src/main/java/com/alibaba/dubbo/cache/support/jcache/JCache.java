@@ -33,31 +33,44 @@ import java.util.concurrent.TimeUnit;
  * JCache
  */
 public class JCache implements com.alibaba.dubbo.cache.Cache {
-
+    /**
+     * 缓存集合
+     */
     private final Cache<Object, Object> store;
 
     public JCache(URL url) {
+        //获得Cache key
         String method = url.getParameter(Constants.METHOD_KEY, "");
         String key = url.getAddress() + "." + url.getServiceKey() + "." + method;
         // jcache parameter is the full-qualified class name of SPI implementation
+        //'jcache'配置项为JAVA SPI实现的全限定类名
         String type = url.getParameter("jcache");
-
+        //基于类型，获得javax.cache.CachingProvider对象
         CachingProvider provider = type == null || type.length() == 0 ? Caching.getCachingProvider() : Caching.getCachingProvider(type);
+        //获得javax.cache.CacheManager对象
         CacheManager cacheManager = provider.getCacheManager();
+        //获得javax.cache.Cache对象
         Cache<Object, Object> cache = cacheManager.getCache(key);
+        //不存在，则进行创建
         if (cache == null) {
             try {
                 //configure the cache
+                //设置Cache配置项
                 MutableConfiguration config =
                         new MutableConfiguration<Object, Object>()
+                                //类型
                                 .setTypes(Object.class, Object.class)
+                                //过期策略，按照写入时间过期。'cache.write.expire'配置项设置过期时间，默认为1分钟
                                 .setExpiryPolicyFactory(CreatedExpiryPolicy.factoryOf(new Duration(TimeUnit.MILLISECONDS, url.getMethodParameter(method, "cache.write.expire", 60 * 1000))))
                                 .setStoreByValue(false)
+                                //设置MBean
                                 .setManagementEnabled(true)
                                 .setStatisticsEnabled(true);
+                //创建javax.cache.Cache对象
                 cache = cacheManager.createCache(key, config);
             } catch (CacheException e) {
                 // concurrent cache initialization
+                //初始化cache的并发情况
                 cache = cacheManager.getCache(key);
             }
         }

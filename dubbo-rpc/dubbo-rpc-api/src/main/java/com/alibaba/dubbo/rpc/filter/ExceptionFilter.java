@@ -40,7 +40,9 @@ import java.lang.reflect.Method;
  * <ol>
  * <li>unexpected exception will be logged in ERROR level on provider side. Unexpected exception are unchecked
  * exception not declared on the interface</li>
+ * 不希望的日志打ERROR日志（provider端）。不期望的日志即是，没有在接口上声明的Unchecked异常
  * <li>Wrap the exception not introduced in API package into RuntimeException. Framework will serialize the outer exception but stringnize its cause in order to avoid of possible serialization problem on client side</li>
+ * 异常在API包中，则Wrap一层RuntimeException。RPC对于第一层异常会直接序列化传输（Cause异常会String化），避免异常在Client出不能反序列化问题
  * </ol>
  */
 @Activate(group = Constants.PROVIDER)
@@ -58,16 +60,20 @@ public class ExceptionFilter implements Filter {
 
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         try {
+            //继续执行Filter链，最终调用服务
             Result result = invoker.invoke(invocation);
+            //有异常，并且非泛化调用
             if (result.hasException() && GenericService.class != invoker.getInterface()) {
                 try {
                     Throwable exception = result.getException();
 
                     // directly throw if it's checked exception
+                    //如果异常是checked异常，直接抛出
                     if (!(exception instanceof RuntimeException) && (exception instanceof Exception)) {
                         return result;
                     }
                     // directly throw if the exception appears in the signature
+                    //在方法签名上有声明，直接抛出异常
                     try {
                         Method method = invoker.getInterface().getMethod(invocation.getMethodName(), invocation.getParameterTypes());
                         Class<?>[] exceptionClassses = method.getExceptionTypes();
@@ -81,27 +87,32 @@ public class ExceptionFilter implements Filter {
                     }
 
                     // for the exception not found in method's signature, print ERROR message in server's log.
+                    //未在方法签名上定义的异常，在服务端打印ERROR日志
                     logger.error("Got unchecked and undeclared exception which called by " + RpcContext.getContext().getRemoteHost()
                             + ". service: " + invoker.getInterface().getName() + ", method: " + invocation.getMethodName()
                             + ", exception: " + exception.getClass().getName() + ": " + exception.getMessage(), exception);
 
                     // directly throw if exception class and interface class are in the same jar file.
+                    //异常类和接口类在统一jar包里，直接抛出
                     String serviceFile = ReflectUtils.getCodeBase(invoker.getInterface());
                     String exceptionFile = ReflectUtils.getCodeBase(exception.getClass());
                     if (serviceFile == null || exceptionFile == null || serviceFile.equals(exceptionFile)) {
                         return result;
                     }
                     // directly throw if it's JDK exception
+                    //是JDK自带的异常，直接抛出
                     String className = exception.getClass().getName();
                     if (className.startsWith("java.") || className.startsWith("javax.")) {
                         return result;
                     }
+                    //是Dubbo本身的异常，直接抛出
                     // directly throw if it's dubbo exception
                     if (exception instanceof RpcException) {
                         return result;
                     }
 
                     // otherwise, wrap with RuntimeException and throw back to the client
+                    //否则包装成RuntimeException抛给客户端
                     return new RpcResult(new RuntimeException(StringUtils.toString(exception)));
                 } catch (Throwable e) {
                     logger.warn("Fail to ExceptionFilter when called by " + RpcContext.getContext().getRemoteHost()
@@ -110,6 +121,7 @@ public class ExceptionFilter implements Filter {
                     return result;
                 }
             }
+            //返回
             return result;
         } catch (RuntimeException e) {
             logger.error("Got unchecked and undeclared exception which called by " + RpcContext.getContext().getRemoteHost()

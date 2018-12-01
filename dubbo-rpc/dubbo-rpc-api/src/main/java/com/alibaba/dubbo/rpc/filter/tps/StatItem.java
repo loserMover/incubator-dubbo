@@ -19,15 +19,25 @@ package com.alibaba.dubbo.rpc.filter.tps;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class StatItem {
-
+    /**
+     * 统计名，目前使用服务键（group/path:version）
+     */
     private String name;
-
+    /**
+     * 最后重置时间
+     */
     private long lastResetTime;
-
+    /**
+     * 周期
+     */
     private long interval;
-
+    /**
+     * 当前剩余种子数
+     */
     private AtomicInteger token;
-
+    /**
+     * 限制大小
+     */
     private int rate;
 
     StatItem(String name, int rate, long interval) {
@@ -39,19 +49,20 @@ class StatItem {
     }
 
     public boolean isAllowable() {
+        //若到达下一个周期，恢复可用种子数，设置最后重置时间
         long now = System.currentTimeMillis();
         if (now > lastResetTime + interval) {
             token.set(rate);
             lastResetTime = now;
         }
-
+        //利用CAS，知道或得到一个种子，或者没有足够的种子
         int value = token.get();
         boolean flag = false;
         while (value > 0 && !flag) {
             flag = token.compareAndSet(value, value - 1);
             value = token.get();
         }
-
+        //是否成功
         return flag;
     }
 

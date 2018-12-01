@@ -32,6 +32,7 @@ public class DeprecatedInvokerListener extends InvokerListenerAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(DeprecatedInvokerListener.class);
 
     public void referred(Invoker<?> invoker) throws RpcException {
+        //调用过期的服务，打印警告日志
         if (invoker.getUrl().getParameter(Constants.DEPRECATED_KEY, false)) {
             LOGGER.error("The service " + invoker.getInterface().getName() + " is DEPRECATED! Declare from " + invoker.getUrl());
         }

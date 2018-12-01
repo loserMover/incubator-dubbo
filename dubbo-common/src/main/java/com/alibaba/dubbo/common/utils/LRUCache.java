@@ -35,10 +35,15 @@ public class LRUCache<K, V> extends LinkedHashMap<K, V> {
     }
 
     public LRUCache(int maxCapacity) {
-        super(16, DEFAULT_LOAD_FACTOR, true);
+        super(16, DEFAULT_LOAD_FACTOR, true);//最后一个参数，按访问顺序（调用get方法）的链表
         this.maxCapacity = maxCapacity;
     }
 
+    /**
+     * 重写removeEldestEntry方法，指定插入元素时移除最老的元素
+     * @param eldest
+     * @return
+     */
     @Override
     protected boolean removeEldestEntry(java.util.Map.Entry<K, V> eldest) {
         return size() > maxCapacity;

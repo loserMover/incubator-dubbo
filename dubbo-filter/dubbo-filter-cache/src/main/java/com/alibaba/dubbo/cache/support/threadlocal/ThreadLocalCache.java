@@ -23,11 +23,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ *  当前线程缓存，比如一个页面渲染，用到很多portal，每个portal都要去查用户信息，通过线程缓存，可以减少这种多余的访问
+ *  目前没有过期或清理机制
  * ThreadLocalCache
  */
 public class ThreadLocalCache implements Cache {
 
-    private final ThreadLocal<Map<Object, Object>> store;
+    private final ThreadLocal<Map<Object, Object>> store;//线程变量
 
     public ThreadLocalCache(URL url) {
         this.store = new ThreadLocal<Map<Object, Object>>() {

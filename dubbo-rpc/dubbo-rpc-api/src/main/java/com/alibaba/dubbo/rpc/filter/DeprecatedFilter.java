@@ -30,23 +30,27 @@ import com.alibaba.dubbo.rpc.RpcException;
 import java.util.Set;
 
 /**
+ * 废弃调用的过滤器实现类，当调用的废弃的服务方法时，打印错误日志提醒
  * DeprecatedInvokerFilter
  */
 @Activate(group = Constants.CONSUMER, value = Constants.DEPRECATED_KEY)
 public class DeprecatedFilter implements Filter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DeprecatedFilter.class);
-
+    //已经打印日志的方法集合
     private static final Set<String> logged = new ConcurrentHashSet<String>();
 
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        //获得方法名（全路径）
         String key = invoker.getInterface().getName() + "." + invocation.getMethodName();
+        //打印告警日志，有且仅有打印一次
         if (!logged.contains(key)) {
             logged.add(key);
             if (invoker.getUrl().getMethodParameter(invocation.getMethodName(), Constants.DEPRECATED_KEY, false)) {
                 LOGGER.error("The service method " + invoker.getInterface().getName() + "." + getMethodSignature(invocation) + " is DEPRECATED! Declare from " + invoker.getUrl());
             }
         }
+        //继续执行Filter链，最终调用服务
         return invoker.invoke(invocation);
     }
 
