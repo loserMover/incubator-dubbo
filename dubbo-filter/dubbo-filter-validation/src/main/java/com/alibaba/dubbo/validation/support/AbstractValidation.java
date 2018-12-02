@@ -31,8 +31,10 @@ public abstract class AbstractValidation implements Validation {
     private final ConcurrentMap<String, Validator> validators = new ConcurrentHashMap<String, Validator>();
 
     public Validator getValidator(URL url) {
+        //获得Validator对象
         String key = url.toFullString();
         Validator validator = validators.get(key);
+        //不存在，则进行创建Validator对象，并缓存
         if (validator == null) {
             validators.put(key, createValidator(url));
             validator = validators.get(key);
@@ -40,6 +42,11 @@ public abstract class AbstractValidation implements Validation {
         return validator;
     }
 
+    /**
+     * 创建Validator对象
+     * @param url URL对象
+     * @return Validator对象
+     */
     protected abstract Validator createValidator(URL url);
 
 }

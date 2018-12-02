@@ -26,7 +26,11 @@ import com.alibaba.dubbo.common.extension.SPI;
  */
 @SPI("jvalidation")
 public interface Validation {
-
+    /**
+     * 获得Validator对象
+     * @param url URL对象
+     * @return
+     */
     @Adaptive(Constants.VALIDATION_KEY)
     Validator getValidator(URL url);
 
