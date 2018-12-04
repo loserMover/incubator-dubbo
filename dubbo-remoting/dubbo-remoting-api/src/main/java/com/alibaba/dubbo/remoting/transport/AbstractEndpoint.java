@@ -33,11 +33,17 @@ import com.alibaba.dubbo.remoting.transport.codec.CodecAdapter;
 public abstract class AbstractEndpoint extends AbstractPeer implements Resetable {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractEndpoint.class);
-
+    /**
+     * 编解码器
+     */
     private Codec2 codec;
-
+    /**
+     * 超时时间
+     */
     private int timeout;
-
+    /**
+     * 连接超时时间
+     */
     private int connectTimeout;
 
     public AbstractEndpoint(URL url, ChannelHandler handler) {
@@ -47,6 +53,11 @@ public abstract class AbstractEndpoint extends AbstractPeer implements Resetable
         this.connectTimeout = url.getPositiveParameter(Constants.CONNECT_TIMEOUT_KEY, Constants.DEFAULT_CONNECT_TIMEOUT);
     }
 
+    /**
+     * 获得编解码器，基于 Dubbo SPI 机制，加载对应的 Codec 实现对象
+     * @param url
+     * @return
+     */
     protected static Codec2 getChannelCodec(URL url) {
         String codecName = url.getParameter(Constants.CODEC_KEY, "telnet");
         if (ExtensionLoader.getExtensionLoader(Codec2.class).hasExtension(codecName)) {
@@ -57,6 +68,10 @@ public abstract class AbstractEndpoint extends AbstractPeer implements Resetable
         }
     }
 
+    /**
+     * 根据新传入的 url 属性，重置codec 、timeout 、connectTimeout属性
+     * @param url
+     */
     public void reset(URL url) {
         if (isClosed()) {
             throw new IllegalStateException("Failed to reset parameters "
