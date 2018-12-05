@@ -21,6 +21,9 @@ import com.alibaba.dubbo.remoting.Channel;
 import com.alibaba.dubbo.remoting.ChannelHandler;
 import com.alibaba.dubbo.remoting.RemotingException;
 
+/**
+ * 通道处理器装饰者抽象实现类
+ */
 public abstract class AbstractChannelHandlerDelegate implements ChannelHandlerDelegate {
 
     protected ChannelHandler handler;

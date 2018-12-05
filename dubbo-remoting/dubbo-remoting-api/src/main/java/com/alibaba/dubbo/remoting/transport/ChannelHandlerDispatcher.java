@@ -26,12 +26,15 @@ import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
+ * 通道处理器调度器， 主要用在 dubbo-remoting-p2p 的 AbstractGroup 中
  * ChannelListenerDispatcher
  */
 public class ChannelHandlerDispatcher implements ChannelHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ChannelHandlerDispatcher.class);
-
+    /**
+     * 通道处理器数组
+     */
     private final Collection<ChannelHandler> channelHandlers = new CopyOnWriteArraySet<ChannelHandler>();
 
     public ChannelHandlerDispatcher() {

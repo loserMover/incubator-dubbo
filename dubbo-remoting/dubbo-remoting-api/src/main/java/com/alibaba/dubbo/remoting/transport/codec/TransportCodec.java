@@ -36,18 +36,23 @@ import java.io.OutputStream;
 public class TransportCodec extends AbstractCodec {
 
     public void encode(Channel channel, ChannelBuffer buffer, Object message) throws IOException {
+        //获得反序列化的ObjectOutPut对象
         OutputStream output = new ChannelBufferOutputStream(buffer);
         ObjectOutput objectOutput = getSerialization(channel).serialize(channel.getUrl(), output);
+        //写入ObjectOutPut
         encodeData(channel, objectOutput, message);
         objectOutput.flushBuffer();
+        //释放
         if (objectOutput instanceof Cleanable) {
             ((Cleanable) objectOutput).cleanup();
         }
     }
 
     public Object decode(Channel channel, ChannelBuffer buffer) throws IOException {
+        //获得序列化的ObjectInput对象
         InputStream input = new ChannelBufferInputStream(buffer);
         ObjectInput objectInput = getSerialization(channel).deserialize(channel.getUrl(), input);
+        //读取objectInput
         Object object = decodeData(channel, objectInput);
         if (objectInput instanceof Cleanable) {
             ((Cleanable) objectInput).cleanup();

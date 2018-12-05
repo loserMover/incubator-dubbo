@@ -32,10 +32,20 @@ import java.util.Set;
 public class CodecSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(CodecSupport.class);
+    /**
+     * 序列化对象集合
+     * key：序列化类型编号{@link Serialization#getContentTypeId()}
+     */
     private static Map<Byte, Serialization> ID_SERIALIZATION_MAP = new HashMap<Byte, Serialization>();
+    /**
+     * 序列化名集合
+     * key：序列化类型编号{@link Serialization#getContentTypeId()}
+     * value：序列化扩展名
+     */
     private static Map<Byte, String> ID_SERIALIZATIONNAME_MAP = new HashMap<Byte, String>();
 
     static {
+        //基于Dubbo SPI机制，初始化
         Set<String> supportedExtensions = ExtensionLoader.getExtensionLoader(Serialization.class).getSupportedExtensions();
         for (String name : supportedExtensions) {
             Serialization serialization = ExtensionLoader.getExtensionLoader(Serialization.class).getExtension(name);
@@ -55,18 +65,36 @@ public class CodecSupport {
     private CodecSupport() {
     }
 
+    /**
+     * 根据id获得Serialization对象
+     * @param id
+     * @return
+     */
     public static Serialization getSerializationById(Byte id) {
         return ID_SERIALIZATION_MAP.get(id);
     }
 
+    /**
+     * 获得Serialization对象
+     * @param url
+     * @return
+     */
     public static Serialization getSerialization(URL url) {
         return ExtensionLoader.getExtensionLoader(Serialization.class).getExtension(
                 url.getParameter(Constants.SERIALIZATION_KEY, Constants.DEFAULT_REMOTING_SERIALIZATION));
     }
 
+    /**
+     * 查找Serialization对象
+     * @param url
+     * @param id
+     * @return
+     * @throws IOException
+     */
     public static Serialization getSerialization(URL url, Byte id) throws IOException {
         Serialization serialization = getSerializationById(id);
         String serializationName = url.getParameter(Constants.SERIALIZATION_KEY, Constants.DEFAULT_REMOTING_SERIALIZATION);
+        //出于安全的目的，针对JDK的序列化方式（对应编号3、4、7），检查连接到服务器的URL和实际传输的数据，协议是否一直
         // Check if "serialization id" passed from network matches the id on this side(only take effect for JDK serialization), for security purpose.
         if (serialization == null
                 || ((id == 3 || id == 7 || id == 4) && !(serializationName.equals(ID_SERIALIZATIONNAME_MAP.get(id))))) {

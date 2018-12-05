@@ -35,6 +35,12 @@ public abstract class AbstractCodec implements Codec2 {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractCodec.class);
 
+    /**
+     * 校验消息长度
+     * @param channel
+     * @param size
+     * @throws IOException
+     */
     protected static void checkPayload(Channel channel, long size) throws IOException {
         int payload = Constants.DEFAULT_PAYLOAD;
         if (channel != null && channel.getUrl() != null) {
@@ -47,10 +53,20 @@ public abstract class AbstractCodec implements Codec2 {
         }
     }
 
+    /**
+     * 获得Serialization对象
+     * @param channel
+     * @return
+     */
     protected Serialization getSerialization(Channel channel) {
         return CodecSupport.getSerialization(channel.getUrl());
     }
 
+    /**
+     * 判断是否为客户端通道
+     * @param channel
+     * @return
+     */
     protected boolean isClientSide(Channel channel) {
         String side = (String) channel.getAttribute(Constants.SIDE_KEY);
         if ("client".equals(side)) {
@@ -70,6 +86,11 @@ public abstract class AbstractCodec implements Codec2 {
         }
     }
 
+    /**
+     * 判断是否为服务端通道
+     * @param channel
+     * @return
+     */
     protected boolean isServerSide(Channel channel) {
         return !isClientSide(channel);
     }

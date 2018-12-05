@@ -36,6 +36,11 @@ public class AllChannelHandler extends WrappedChannelHandler {
         super(handler, url);
     }
 
+    /**
+     * 连接，创建ChannelEventRunnable 交给线程池处理
+     * @param channel
+     * @throws RemotingException
+     */
     public void connected(Channel channel) throws RemotingException {
         ExecutorService cexecutor = getExecutorService();
         try {

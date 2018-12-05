@@ -25,7 +25,9 @@ import com.alibaba.dubbo.remoting.exchange.support.header.HeartbeatHandler;
 import com.alibaba.dubbo.remoting.transport.MultiMessageHandler;
 
 public class ChannelHandlers {
-
+    /**
+     * 单例
+     */
     private static ChannelHandlers INSTANCE = new ChannelHandlers();
 
     protected ChannelHandlers() {

@@ -31,6 +31,7 @@ public abstract class AbstractChannel extends AbstractPeer implements Channel {
     }
 
     public void send(Object message, boolean sent) throws RemotingException {
+        //如果连接已经关闭，则抛出异常
         if (isClosed()) {
             throw new RemotingException(this, "Failed to send message "
                     + (message == null ? "" : message.getClass().getName()) + ":" + message

@@ -32,23 +32,35 @@ import com.alibaba.dubbo.remoting.transport.ChannelHandlerDelegate;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * 从目前的实现来看WrappedChannelHandler 继承 AbstractChannelHandlerDelegate 更合适，因为 #connected(channel) 等，实现的方法都是相同的。
+ */
 public class WrappedChannelHandler implements ChannelHandlerDelegate {
 
     protected static final Logger logger = LoggerFactory.getLogger(WrappedChannelHandler.class);
-
+    /**
+     * 共用线程池
+     */
     protected static final ExecutorService SHARED_EXECUTOR = Executors.newCachedThreadPool(new NamedThreadFactory("DubboSharedHandler", true));
-
+    /**
+     * 线程池
+     */
     protected final ExecutorService executor;
-
+    /**
+     * 通道处理器
+     */
     protected final ChannelHandler handler;
-
+    /**
+     * URL
+     */
     protected final URL url;
 
     public WrappedChannelHandler(ChannelHandler handler, URL url) {
         this.handler = handler;
         this.url = url;
+        //创建线程池，基于Dubbo SPI机制
         executor = (ExecutorService) ExtensionLoader.getExtensionLoader(ThreadPool.class).getAdaptiveExtension().getExecutor(url);
-
+        //添加线程池到DataStore中， AbstractClient 或 AbstractServer 从 DataStore 获得线程池的方式。当然，官方也说了，这种方式不是很优雅，有点奇淫技巧，未来会优化掉。
         String componentKey = Constants.EXECUTOR_SERVICE_COMPONENT_KEY;
         if (Constants.CONSUMER_SIDE.equalsIgnoreCase(url.getParameter(Constants.SIDE_KEY))) {
             componentKey = Constants.CONSUMER_SIDE;
