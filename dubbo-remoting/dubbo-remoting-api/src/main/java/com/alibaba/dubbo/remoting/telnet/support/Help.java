@@ -29,11 +29,22 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE})
 public @interface Help {
-
+    /**
+     * 参数说明
+     * @return
+     */
     String parameter() default "";
 
+    /**
+     * 简要提示
+     * @return
+     */
     String summary();
 
+    /**
+     * 详细提示
+     * @return
+     */
     String detail() default "";
 
 }
