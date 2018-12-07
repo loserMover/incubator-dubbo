@@ -55,7 +55,14 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
         this.handler = handler;
     }
 
+    /**
+     * //非心跳事件响应
+     * @param channel
+     * @param response
+     * @throws RemotingException
+     */
     static void handleResponse(Channel channel, Response response) throws RemotingException {
+        //非心跳事件响应，唤醒等待请求结果的线程
         if (response != null && !response.isHeartbeat()) {
             DefaultFuture.received(channel, response);
         }
@@ -69,6 +76,12 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
                         .equals(NetUtils.filterLocalHost(address.getAddress().getHostAddress()));
     }
 
+    /**
+     * 接收到的是READONLY_EVENT事件请求，设置到通道。
+     * @param channel
+     * @param req
+     * @throws RemotingException
+     */
     void handlerEvent(Channel channel, Request req) throws RemotingException {
         if (req.getData() != null && req.getData().equals(Request.READONLY_EVENT)) {
             channel.setAttribute(Constants.CHANNEL_ATTRIBUTE_READONLY_KEY, Boolean.TRUE);
@@ -77,9 +90,10 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
 
     Response handleRequest(ExchangeChannel channel, Request req) throws RemotingException {
         Response res = new Response(req.getId(), req.getVersion());
+        //请求无法解析，返回BAD_REQUEST响应
         if (req.isBroken()) {
             Object data = req.getData();
-
+            //请求数据转成msg
             String msg;
             if (data == null) msg = null;
             else if (data instanceof Throwable) msg = StringUtils.toString((Throwable) data);
@@ -89,6 +103,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
 
             return res;
         }
+        //使用ExchangeHandler处理，并返回响应
         // find handler by message class.
         Object msg = req.getData();
         try {
@@ -155,49 +170,62 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     }
 
     public void received(Channel channel, Object message) throws RemotingException {
+        //设置最后的读时间
         channel.setAttribute(KEY_READ_TIMESTAMP, System.currentTimeMillis());
+        //创建ExchangeChannel对象
         ExchangeChannel exchangeChannel = HeaderExchangeChannel.getOrAddChannel(channel);
         try {
+            //处理请求（Request）
             if (message instanceof Request) {
                 // handle request.
                 Request request = (Request) message;
+                //处理事件请求
                 if (request.isEvent()) {
                     handlerEvent(channel, request);
                 } else {
+                    //处理普通请求
                     if (request.isTwoWay()) {
                         Response response = handleRequest(exchangeChannel, request);
                         channel.send(response);
+                    //交给装饰器'handler'继续处理
                     } else {
                         handler.received(exchangeChannel, request.getData());
                     }
                 }
+            //处理响应（Response）
             } else if (message instanceof Response) {
                 handleResponse(channel, (Response) message);
+            //处理String
             } else if (message instanceof String) {
+                //客户端通道，不支持String
                 if (isClientSide(channel)) {
                     Exception e = new Exception("Dubbo client can not supported string message: " + message + " in channel: " + channel + ", url: " + channel.getUrl());
                     logger.error(e.getMessage(), e);
+                //服务端通道，目前是telnet命令
                 } else {
                     String echo = handler.telnet(channel, (String) message);
                     if (echo != null && echo.length() > 0) {
                         channel.send(echo);
                     }
                 }
+            //交给装饰的'handler'，继续处理
             } else {
                 handler.received(exchangeChannel, message);
             }
         } finally {
+            //移除ExchangeChannel对象，若已断开
             HeaderExchangeChannel.removeChannelIfDisconnected(channel);
         }
     }
 
     public void caught(Channel channel, Throwable exception) throws RemotingException {
+        //当发生ExecutionException异常，返回异常响应（Response）
         if (exception instanceof ExecutionException) {
             ExecutionException e = (ExecutionException) exception;
             Object msg = e.getRequest();
             if (msg instanceof Request) {
                 Request req = (Request) msg;
-                if (req.isTwoWay() && !req.isHeartbeat()) {
+                if (req.isTwoWay() && !req.isHeartbeat()) {//需要响应，并且不是心跳事件
                     Response res = new Response(req.getId(), req.getVersion());
                     res.setStatus(Response.SERVER_ERROR);
                     res.setErrorMessage(StringUtils.toString(e));
@@ -206,10 +234,13 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
                 }
             }
         }
+        //创建ExchangeChannel对象
         ExchangeChannel exchangeChannel = HeaderExchangeChannel.getOrAddChannel(channel);
         try {
+            //提交给装饰的'handler',继续处理
             handler.caught(exchangeChannel, exception);
         } finally {
+            //移除ExchangeChannel对象，若已断开
             HeaderExchangeChannel.removeChannelIfDisconnected(channel);
         }
     }

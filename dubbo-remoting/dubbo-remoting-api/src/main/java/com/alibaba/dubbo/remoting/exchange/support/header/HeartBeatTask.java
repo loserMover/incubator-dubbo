@@ -28,11 +28,17 @@ import java.util.Collection;
 final class HeartBeatTask implements Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(HeartBeatTask.class);
-
+    /**
+     * 生产者通道
+     */
     private ChannelProvider channelProvider;
-
+    /**
+     * 心跳间隔，单位：毫秒
+     */
     private int heartbeat;
-
+    /**
+     * 心跳超时时间h，单位：毫秒
+     */
     private int heartbeatTimeout;
 
     HeartBeatTask(ChannelProvider provider, int heartbeat, int heartbeatTimeout) {
@@ -45,6 +51,7 @@ final class HeartBeatTask implements Runnable {
         try {
             long now = System.currentTimeMillis();
             for (Channel channel : channelProvider.getChannels()) {
+                //跳过通道关闭
                 if (channel.isClosed()) {
                     continue;
                 }
@@ -53,11 +60,12 @@ final class HeartBeatTask implements Runnable {
                             HeaderExchangeHandler.KEY_READ_TIMESTAMP);
                     Long lastWrite = (Long) channel.getAttribute(
                             HeaderExchangeHandler.KEY_WRITE_TIMESTAMP);
+                    //最后读写的时间，任一超过心跳间隔，发送心跳
                     if ((lastRead != null && now - lastRead > heartbeat)
                             || (lastWrite != null && now - lastWrite > heartbeat)) {
                         Request req = new Request();
                         req.setVersion("2.0.0");
-                        req.setTwoWay(true);
+                        req.setTwoWay(true);//需要相应
                         req.setEvent(Request.HEARTBEAT_EVENT);
                         channel.send(req);
                         if (logger.isDebugEnabled()) {
@@ -65,15 +73,18 @@ final class HeartBeatTask implements Runnable {
                                     + ", cause: The channel has no data-transmission exceeds a heartbeat period: " + heartbeat + "ms");
                         }
                     }
+                    //最后读的时间，超过心跳超时时间
                     if (lastRead != null && now - lastRead > heartbeatTimeout) {
                         logger.warn("Close channel " + channel
                                 + ", because heartbeat read idle time out: " + heartbeatTimeout + "ms");
+                        //客户端通道，则重新连接服务端
                         if (channel instanceof Client) {
                             try {
                                 ((Client) channel).reconnect();
                             } catch (Exception e) {
                                 //do nothing
                             }
+                        //服务端通道，则关闭客户端连接
                         } else {
                             channel.close();
                         }

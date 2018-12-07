@@ -34,15 +34,20 @@ import java.net.InetSocketAddress;
 
 /**
  * ExchangeReceiver
+ * 基于消息头部（Header）的信息交换通道实现类
  */
 final class HeaderExchangeChannel implements ExchangeChannel {
 
     private static final Logger logger = LoggerFactory.getLogger(HeaderExchangeChannel.class);
 
     private static final String CHANNEL_KEY = HeaderExchangeChannel.class.getName() + ".CHANNEL";
-
+    /**
+     * 通道
+     */
     private final Channel channel;
-
+    /**
+     * 是否关闭
+     */
     private volatile boolean closed = false;
 
     HeaderExchangeChannel(Channel channel) {
@@ -52,6 +57,11 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         this.channel = channel;
     }
 
+    /**
+     * 获取通道，不存在则进行创建
+     * @param ch
+     * @return
+     */
     static HeaderExchangeChannel getOrAddChannel(Channel ch) {
         if (ch == null) {
             return null;
@@ -59,13 +69,17 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         HeaderExchangeChannel ret = (HeaderExchangeChannel) ch.getAttribute(CHANNEL_KEY);
         if (ret == null) {
             ret = new HeaderExchangeChannel(ch);
-            if (ch.isConnected()) {
+            if (ch.isConnected()) {//已连接
                 ch.setAttribute(CHANNEL_KEY, ret);
             }
         }
         return ret;
     }
 
+    /**
+     * 移除通道
+     * @param ch
+     */
     static void removeChannelIfDisconnected(Channel ch) {
         if (ch != null && !ch.isConnected()) {
             ch.removeAttribute(CHANNEL_KEY);
@@ -97,22 +111,33 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         return request(request, channel.getUrl().getPositiveParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT));
     }
 
+    /**
+     * 发送请求
+     * @param request
+     * @param timeout
+     * @return
+     * @throws RemotingException
+     */
     public ResponseFuture request(Object request, int timeout) throws RemotingException {
+        //已经关闭，不再允许发起新的请求
         if (closed) {
             throw new RemotingException(this.getLocalAddress(), null, "Failed to send request " + request + ", cause: The channel " + this + " is closed!");
         }
-        // create request.
+        // create request. 创建请求
         Request req = new Request();
         req.setVersion("2.0.0");
-        req.setTwoWay(true);
+        req.setTwoWay(true);//需要响应
         req.setData(request);
+        //创建DefaultFuture对象
         DefaultFuture future = new DefaultFuture(channel, req, timeout);
         try {
+            //发送请求
             channel.send(req);
         } catch (RemotingException e) {
-            future.cancel();
+            future.cancel();//发生移除，取消DefaultFuture
             throw e;
         }
+        //返回DefaultFuture对象
         return future;
     }
 
@@ -134,6 +159,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
             return;
         }
         closed = true;
+        //等待请i去完成
         if (timeout > 0) {
             long start = System.currentTimeMillis();
             while (DefaultFuture.hasFuture(channel)
@@ -145,6 +171,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
                 }
             }
         }
+        //关闭通道
         close();
     }
 

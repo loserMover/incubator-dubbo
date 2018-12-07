@@ -43,33 +43,53 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * ExchangeServerImpl
+ * 实现ExchangeServer接口，基于消息头部（Header）的信息交换服务端实现类
  */
 public class HeaderExchangeServer implements ExchangeServer {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
-
+    /**
+     * 定时器线程池
+     */
     private final ScheduledExecutorService scheduled = Executors.newScheduledThreadPool(1,
             new NamedThreadFactory(
                     "dubbo-remoting-server-heartbeat",
                     true));
+    /**
+     * 服务器
+     */
     private final Server server;
+    /**
+     * 心跳定时器
+     */
     // heartbeat timer
     private ScheduledFuture<?> heatbeatTimer;
+    /**
+     * 是否心跳
+     */
     // heartbeat timeout (ms), default value is 0 , won't execute a heartbeat.
     private int heartbeat;
+    /**
+     * 心跳间隔，单位：毫秒
+     */
     private int heartbeatTimeout;
+    /**
+     * 是否关闭
+     */
     private AtomicBoolean closed = new AtomicBoolean(false);
 
     public HeaderExchangeServer(Server server) {
         if (server == null) {
             throw new IllegalArgumentException("server == null");
         }
+        //读取心跳相关配置
         this.server = server;
         this.heartbeat = server.getUrl().getParameter(Constants.HEARTBEAT_KEY, 0);
         this.heartbeatTimeout = server.getUrl().getParameter(Constants.HEARTBEAT_TIMEOUT_KEY, heartbeat * 3);
         if (heartbeatTimeout < heartbeat * 2) {
             throw new IllegalStateException("heartbeatTimeout < heartbeatInterval * 2");
         }
+        //发起心跳定时器
         startHeatbeatTimer();
     }
 
@@ -96,14 +116,21 @@ public class HeaderExchangeServer implements ExchangeServer {
         server.close();
     }
 
+    /**
+     * 优雅关闭
+     * @param timeout
+     */
     public void close(final int timeout) {
+        //正在关闭
         startClose();
         if (timeout > 0) {
             final long max = (long) timeout;
             final long start = System.currentTimeMillis();
+            //发送READONLY事件给所有Client，表示Server不可读
             if (getUrl().getParameter(Constants.CHANNEL_SEND_READONLYEVENT_KEY, true)) {
                 sendChannelReadOnlyEvent();
             }
+            //等待请求完成
             while (HeaderExchangeServer.this.isRunning()
                     && System.currentTimeMillis() - start < max) {
                 try {
@@ -113,7 +140,9 @@ public class HeaderExchangeServer implements ExchangeServer {
                 }
             }
         }
+        //关闭心跳定时器
         doClose();
+        //关闭服务器
         server.close(timeout);
     }
 
@@ -123,11 +152,12 @@ public class HeaderExchangeServer implements ExchangeServer {
     }
 
     private void sendChannelReadOnlyEvent() {
+        //创建READONLY_EVENT请求
         Request request = new Request();
         request.setEvent(Request.READONLY_EVENT);
-        request.setTwoWay(false);
+        request.setTwoWay(false);//无需响应
         request.setVersion(Version.getVersion());
-
+        //发送给所有Client
         Collection<Channel> channels = getChannels();
         for (Channel channel : channels) {
             try {
@@ -143,7 +173,9 @@ public class HeaderExchangeServer implements ExchangeServer {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        //停止心跳定时任务
         stopHeartbeatTimer();
+        //关闭定时任务线程池
         try {
             scheduled.shutdown();
         } catch (Throwable t) {
@@ -192,7 +224,12 @@ public class HeaderExchangeServer implements ExchangeServer {
         return server.getChannelHandler();
     }
 
+    /**
+     * 重置
+     * @param url
+     */
     public void reset(URL url) {
+        //重置服务器
         server.reset(url);
         try {
             if (url.hasParameter(Constants.HEARTBEAT_KEY)
@@ -202,6 +239,7 @@ public class HeaderExchangeServer implements ExchangeServer {
                 if (t < h * 2) {
                     throw new IllegalStateException("heartbeatTimeout < heartbeatInterval * 2");
                 }
+                //重置定时任务
                 if (h != heartbeat || t != heartbeatTimeout) {
                     heartbeat = h;
                     heartbeatTimeout = t;
@@ -232,8 +270,13 @@ public class HeaderExchangeServer implements ExchangeServer {
         server.send(message, sent);
     }
 
+    /**
+     * 发起心跳定时器
+     */
     private void startHeatbeatTimer() {
+        //停止原有心跳定时任务
         stopHeartbeatTimer();
+        //发起新的定时任务
         if (heartbeat > 0) {
             heatbeatTimer = scheduled.scheduleWithFixedDelay(
                     new HeartBeatTask(new HeartBeatTask.ChannelProvider() {

@@ -28,6 +28,7 @@ import java.util.Collection;
 
 /**
  * ExchangeServerDelegate
+ * 现实ExchangeServer接口，信息交换服务器装饰着，在每个实现方法里，直接调用被装饰的server属性的方法
  */
 public class ExchangeServerDelegate implements ExchangeServer {
 

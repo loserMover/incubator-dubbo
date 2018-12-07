@@ -25,6 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
+ * 实现Iterable接口，多消息的封装。
  * @see com.alibaba.dubbo.remoting.transport.MultiMessageHandler
  */
 public final class MultiMessage implements Iterable {
