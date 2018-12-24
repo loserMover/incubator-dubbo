@@ -21,8 +21,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 public class ChannelBufferOutputStream extends OutputStream {
-
+    /**
+     * Buffer
+     */
     private final ChannelBuffer buffer;
+    /**
+     * 开始位置
+     */
     private final int startIndex;
 
     public ChannelBufferOutputStream(ChannelBuffer buffer) {

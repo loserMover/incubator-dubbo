@@ -23,18 +23,25 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
 public class ByteBufferBackedChannelBuffer extends AbstractChannelBuffer {
-
+    /**
+     * buffer
+     * java.nio.ByteBuffer
+     */
     private final ByteBuffer buffer;
-
+    /**
+     * 容量
+     */
     private final int capacity;
 
     public ByteBufferBackedChannelBuffer(ByteBuffer buffer) {
         if (buffer == null) {
             throw new NullPointerException("buffer");
         }
-
+        //buffer
         this.buffer = buffer.slice();
+        //容量
         capacity = buffer.remaining();
+        //设置'writerIndex'
         writerIndex(capacity);
     }
 
@@ -44,6 +51,10 @@ public class ByteBufferBackedChannelBuffer extends AbstractChannelBuffer {
         setIndex(buffer.readerIndex(), buffer.writerIndex());
     }
 
+    /**
+     * 获取响应工厂
+     * @return
+     */
     public ChannelBufferFactory factory() {
         if (buffer.isDirect()) {
             return DirectChannelBufferFactory.getInstance();
