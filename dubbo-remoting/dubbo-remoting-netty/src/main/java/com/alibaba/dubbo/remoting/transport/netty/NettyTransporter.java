@@ -22,9 +22,14 @@ import com.alibaba.dubbo.remoting.Client;
 import com.alibaba.dubbo.remoting.RemotingException;
 import com.alibaba.dubbo.remoting.Server;
 import com.alibaba.dubbo.remoting.Transporter;
-
+/**
+ * NettyTransporter基于Dubbo SPI机制加载
+ * 创建NettyServer和NettyClient
+ */
 public class NettyTransporter implements Transporter {
-
+    /**
+     * 拓展名
+     */
     public static final String NAME = "netty";
 
     public Server bind(URL url, ChannelHandler listener) throws RemotingException {

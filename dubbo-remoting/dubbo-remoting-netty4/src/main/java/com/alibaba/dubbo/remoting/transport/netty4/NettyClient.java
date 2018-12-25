@@ -126,6 +126,7 @@ public class NettyClient extends AbstractClient {
                             NettyClient.this.channel = null;
                             NettyChannel.removeChannelIfDisconnected(newChannel);
                         }
+                    //设置新连接
                     } else {
                         NettyClient.this.channel = newChannel;
                     }
@@ -134,7 +135,7 @@ public class NettyClient extends AbstractClient {
             } else if (future.cause() != null) {
                 throw new RemotingException(this, "client(url: " + getUrl() + ") failed to connect to server "
                         + getRemoteAddress() + ", error message is:" + future.cause().getMessage(), future.cause());
-            //无结果（连接超时），抛出RemotingException异常
+            //无接超结果（连时），抛出RemotingException异常
             } else {
                 throw new RemotingException(this, "client(url: " + getUrl() + ") failed to connect to server "
                         + getRemoteAddress() + " client-side timeout "

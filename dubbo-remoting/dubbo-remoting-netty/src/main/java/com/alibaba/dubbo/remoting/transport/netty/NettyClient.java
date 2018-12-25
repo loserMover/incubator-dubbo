@@ -61,21 +61,25 @@ public class NettyClient extends AbstractClient {
 
     @Override
     protected void doOpen() throws Throwable {
+        //设置日志工厂
         NettyHelper.setNettyLoggerFactory();
+        //实例化ServerBootstrap
         bootstrap = new ClientBootstrap(channelFactory);
+        //设置可选项
         // config
         // @see org.jboss.netty.channel.socket.SocketChannelConfig
-        bootstrap.setOption("keepAlive", true);
-        bootstrap.setOption("tcpNoDelay", true);
-        bootstrap.setOption("connectTimeoutMillis", getTimeout());
+        bootstrap.setOption("keepAlive", true);//设置可选项
+        bootstrap.setOption("tcpNoDelay", true);//设置可选项
+        bootstrap.setOption("connectTimeoutMillis", getTimeout());//设置可选项
         final NettyHandler nettyHandler = new NettyHandler(getUrl(), this);
         bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
             public ChannelPipeline getPipeline() {
+                //创建NettyCodecAdapter对象
                 NettyCodecAdapter adapter = new NettyCodecAdapter(getCodec(), getUrl(), NettyClient.this);
                 ChannelPipeline pipeline = Channels.pipeline();
-                pipeline.addLast("decoder", adapter.getDecoder());
-                pipeline.addLast("encoder", adapter.getEncoder());
-                pipeline.addLast("handler", nettyHandler);
+                pipeline.addLast("decoder", adapter.getDecoder());//解码
+                pipeline.addLast("encoder", adapter.getEncoder());//编码
+                pipeline.addLast("handler", nettyHandler);//处理器
                 return pipeline;
             }
         });
@@ -83,14 +87,17 @@ public class NettyClient extends AbstractClient {
 
     protected void doConnect() throws Throwable {
         long start = System.currentTimeMillis();
+        //连接服务器
         ChannelFuture future = bootstrap.connect(getConnectAddress());
         try {
+            //等待连接成功或者超时
             boolean ret = future.awaitUninterruptibly(getConnectTimeout(), TimeUnit.MILLISECONDS);
-
+            //连接成功
             if (ret && future.isSuccess()) {
                 Channel newChannel = future.getChannel();
                 newChannel.setInterestOps(Channel.OP_READ_WRITE);
                 try {
+                    //关闭老的连接
                     // Close old channel
                     Channel oldChannel = NettyClient.this.channel; // copy reference
                     if (oldChannel != null) {
@@ -104,6 +111,7 @@ public class NettyClient extends AbstractClient {
                         }
                     }
                 } finally {
+                    //若NettyClient被关闭，关闭连接
                     if (NettyClient.this.isClosed()) {
                         try {
                             if (logger.isInfoEnabled()) {
@@ -114,13 +122,16 @@ public class NettyClient extends AbstractClient {
                             NettyClient.this.channel = null;
                             NettyChannel.removeChannelIfDisconnected(newChannel);
                         }
+                    //设置新连接
                     } else {
                         NettyClient.this.channel = newChannel;
                     }
                 }
+            //发生异常，抛出RemotingException异常
             } else if (future.getCause() != null) {
                 throw new RemotingException(this, "client(url: " + getUrl() + ") failed to connect to server "
                         + getRemoteAddress() + ", error message is:" + future.getCause().getMessage(), future.getCause());
+            //无接超结果（连时），抛出RemotingException异常
             } else {
                 throw new RemotingException(this, "client(url: " + getUrl() + ") failed to connect to server "
                         + getRemoteAddress() + " client-side timeout "
@@ -128,6 +139,7 @@ public class NettyClient extends AbstractClient {
                         + NetUtils.getLocalHost() + " using dubbo version " + Version.getVersion());
             }
         } finally {
+            //未连接，取消任务
             if (!isConnected()) {
                 future.cancel();
             }

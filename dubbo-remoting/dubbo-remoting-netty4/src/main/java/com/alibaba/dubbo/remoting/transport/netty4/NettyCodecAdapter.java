@@ -93,7 +93,7 @@ final class NettyCodecAdapter {
             ChannelBuffer message = new NettyBackedChannelBuffer(input);
             //获得NettyChannel对象
             NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
-            //循环解析，知道结束
+            //循环解析，直到结束
             Object msg;
 
             int saveReaderIndex;
@@ -113,7 +113,7 @@ final class NettyCodecAdapter {
                     if (msg == Codec2.DecodeResult.NEED_MORE_INPUT) {
                         message.readerIndex(saveReaderIndex);
                         break;
-                    //解码到消息，添加到'out'
+                    // 解码到消息，触发一条消息
                     } else {
                         //is it possible to go here ?
                         if (saveReaderIndex == message.readerIndex()) {
