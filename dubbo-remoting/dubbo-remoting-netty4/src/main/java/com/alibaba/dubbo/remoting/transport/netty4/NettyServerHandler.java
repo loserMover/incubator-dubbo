@@ -30,15 +30,21 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * NettyClientHandler
+ * NettyClientHandler，继承ChannelDuplexHandler类，NettyServer处理器
  */
 @io.netty.channel.ChannelHandler.Sharable
 public class NettyServerHandler extends ChannelDuplexHandler {
-
+    /**
+     * Dubbo Channel集合
+     */
     private final Map<String, Channel> channels = new ConcurrentHashMap<String, Channel>(); // <ip:port, channel>
-
+    /**
+     * URL
+     */
     private final URL url;
-
+    /**
+     * Dubbo ChannelHandler
+     */
     private final ChannelHandler handler;
 
     public NettyServerHandler(URL url, ChannelHandler handler) {
@@ -58,15 +64,20 @@ public class NettyServerHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        //交给下一个节点处理
+        //个人觉得刺出不要调用也没有关系，因为NettySeverHandler没有下一个节点
         ctx.fireChannelActive();
-
+        //创建NettyChannel对象
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
         try {
+            //添加到'channels'中
             if (channel != null) {
                 channels.put(NetUtils.toAddressString((InetSocketAddress) ctx.channel().remoteAddress()), channel);
             }
+            //提交给'handler'处理器
             handler.connected(channel);
         } finally {
+            //若已断开，移除NettyChannel对象
             NettyChannel.removeChannelIfDisconnected(ctx.channel());
         }
     }

@@ -31,18 +31,28 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * NettyCodecAdapter.
+ * NettyCodecAdapter.Netty编解码适配器，将Dubbo编解码器适配成Netty4的编码器和解码器
  */
 final class NettyCodecAdapter {
-
+    /**
+     * Netty编码器
+     */
     private final ChannelHandler encoder = new InternalEncoder();
-
+    /**
+     * Netty解码器
+     */
     private final ChannelHandler decoder = new InternalDecoder();
-
+    /**
+     * Dubbo编解码器
+     */
     private final Codec2 codec;
-
+    /**
+     * Dubbo URL
+     */
     private final URL url;
-
+    /**
+     * Dubbo ChannelHandler
+     */
     private final com.alibaba.dubbo.remoting.ChannelHandler handler;
 
     public NettyCodecAdapter(Codec2 codec, URL url, com.alibaba.dubbo.remoting.ChannelHandler handler) {
@@ -62,10 +72,13 @@ final class NettyCodecAdapter {
     private class InternalEncoder extends MessageToByteEncoder {
 
         protected void encode(ChannelHandlerContext ctx, Object msg, ByteBuf out) throws Exception {
+            //创建NettyBackedChannelBuffer对象
             com.alibaba.dubbo.remoting.buffer.ChannelBuffer buffer = new NettyBackedChannelBuffer(out);
+            //获得NettyChannel对象
             Channel ch = ctx.channel();
             NettyChannel channel = NettyChannel.getOrAddChannel(ch, url, handler);
             try {
+                //编码
                 codec.encode(channel, buffer, msg);
             } finally {
                 NettyChannel.removeChannelIfDisconnected(ch);
@@ -76,11 +89,11 @@ final class NettyCodecAdapter {
     private class InternalDecoder extends ByteToMessageDecoder {
 
         protected void decode(ChannelHandlerContext ctx, ByteBuf input, List<Object> out) throws Exception {
-
+            //创建NettyBackedChannelBuffer对象
             ChannelBuffer message = new NettyBackedChannelBuffer(input);
-
+            //获得NettyChannel对象
             NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
-
+            //循环解析，知道结束
             Object msg;
 
             int saveReaderIndex;
@@ -88,15 +101,19 @@ final class NettyCodecAdapter {
             try {
                 // decode object.
                 do {
+                    //记录当前读取进度
                     saveReaderIndex = message.readerIndex();
+                    //解码
                     try {
                         msg = codec.decode(channel, message);
                     } catch (IOException e) {
                         throw e;
                     }
+                    //需要更多输入，即消息不完整，标记回原有读进度，并结束
                     if (msg == Codec2.DecodeResult.NEED_MORE_INPUT) {
                         message.readerIndex(saveReaderIndex);
                         break;
+                    //解码到消息，添加到'out'
                     } else {
                         //is it possible to go here ?
                         if (saveReaderIndex == message.readerIndex()) {
@@ -108,6 +125,7 @@ final class NettyCodecAdapter {
                     }
                 } while (message.readable());
             } finally {
+                //若连接断开，移除NettyChannel对象
                 NettyChannel.removeChannelIfDisconnected(ctx.channel());
             }
         }
