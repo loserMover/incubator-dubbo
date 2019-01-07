@@ -26,12 +26,16 @@ public interface HttpServer extends Resetable {
     /**
      * get http handler.
      *
+     * 获得处理器
+     *
      * @return http handler.
      */
     HttpHandler getHttpHandler();
 
     /**
      * get url.
+     *
+     * URL
      *
      * @return url
      */

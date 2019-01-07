@@ -19,17 +19,26 @@ package com.alibaba.dubbo.common.serialize.support;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+/**
+ *  序列化优化类的注册表
+ */
 public abstract class SerializableClassRegistry {
 
     private static final Set<Class> registrations = new LinkedHashSet<Class>();
 
     /**
      * only supposed to be called at startup time
+     *
+     *  注册。在 SerializationOptimizer#getSerializableClasses() 方法，获得的类的集合，会注册到 SerializableClassRegistry 中。
      */
     public static void registerClass(Class clazz) {
         registrations.add(clazz);
     }
 
+    /**
+     *  获得。Kryo 、FST 中，调用该方法，获得需要使用优化的类的集合。
+     * @return
+     */
     public static Set<Class> getRegisteredClasses() {
         return registrations;
     }

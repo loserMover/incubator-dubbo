@@ -38,9 +38,13 @@ import org.mortbay.thread.QueuedThreadPool;
 public class JettyHttpServer extends AbstractHttpServer {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyHttpServer.class);
-
+    /**
+     * 内嵌的Jetty服务器
+     */
     private Server server;
-
+    /**
+     * URL 对象
+     */
     private URL url;
 
     public JettyHttpServer(URL url, final HttpHandler handler) {
@@ -48,17 +52,18 @@ public class JettyHttpServer extends AbstractHttpServer {
         this.url = url;
         // TODO we should leave this setting to slf4j
         // we must disable the debug logging for production use
+        //设置日志的配置
         Log.setLog(new StdErrLog());
         Log.getLog().setDebugEnabled(false);
-
+        //注册HttpHandler到DispatcherServlet中
         DispatcherServlet.addHttpHandler(url.getParameter(Constants.BIND_PORT_KEY, url.getPort()), handler);
-
+        //创建线程池
         int threads = url.getParameter(Constants.THREADS_KEY, Constants.DEFAULT_THREADS);
         QueuedThreadPool threadPool = new QueuedThreadPool();
         threadPool.setDaemon(true);
         threadPool.setMaxThreads(threads);
         threadPool.setMinThreads(threads);
-
+        //创建内嵌的Jetty Connector对象
         SelectChannelConnector connector = new SelectChannelConnector();
 
         String bindIp = url.getParameter(Constants.BIND_IP_KEY, url.getHost());
@@ -66,11 +71,11 @@ public class JettyHttpServer extends AbstractHttpServer {
             connector.setHost(bindIp);
         }
         connector.setPort(url.getParameter(Constants.BIND_PORT_KEY, url.getPort()));
-
+        //创建内嵌的Jetty对象
         server = new Server();
         server.setThreadPool(threadPool);
         server.addConnector(connector);
-
+        //添加DispatcherServlet到Jetty中
         ServletHandler servletHandler = new ServletHandler();
         ServletHolder servletHolder = servletHandler.addServletWithMapping(DispatcherServlet.class, "/*");
         servletHolder.setInitOrder(2);
@@ -78,10 +83,11 @@ public class JettyHttpServer extends AbstractHttpServer {
         // dubbo's original impl can't support the use of ServletContext
 //        server.addHandler(servletHandler);
         // TODO Context.SESSIONS is the best option here?
+        //添加ServletContext对象到ServletManager中
         Context context = new Context(server, "/", Context.SESSIONS);
         context.setServletHandler(servletHandler);
         ServletManager.getInstance().addServletContext(url.getParameter(Constants.BIND_PORT_KEY, url.getPort()), context.getServletContext());
-
+        //启动Jetty
         try {
             server.start();
         } catch (Exception e) {
@@ -91,11 +97,12 @@ public class JettyHttpServer extends AbstractHttpServer {
     }
 
     public void close() {
+        //标记关闭
         super.close();
 
-        //
+        //移除ServletContext对象
         ServletManager.getInstance().removeServletContext(url.getParameter(Constants.BIND_PORT_KEY, url.getPort()));
-
+        //关闭Jetty
         if (server != null) {
             try {
                 server.stop();

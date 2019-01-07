@@ -29,10 +29,12 @@ public interface HttpHandler {
     /**
      * invoke.
      *
-     * @param request  request.
-     * @param response response.
-     * @throws IOException
-     * @throws ServletException
+     * 处理器请求
+     *
+     * @param request  request. 请求
+     * @param response response. 相应
+     * @throws IOException 当IO发生溢出
+     * @throws ServletException 当Servlet发生异常
      */
     void handle(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException;
 

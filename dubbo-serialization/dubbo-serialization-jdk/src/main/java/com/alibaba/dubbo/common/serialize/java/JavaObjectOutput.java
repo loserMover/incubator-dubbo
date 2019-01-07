@@ -36,20 +36,21 @@ public class JavaObjectOutput extends NativeJavaObjectOutput {
     }
 
     public void writeUTF(String v) throws IOException {
+        //空字符串
         if (v == null) {
             getObjectOutputStream().writeInt(-1);
         } else {
-            getObjectOutputStream().writeInt(v.length());
-            getObjectOutputStream().writeUTF(v);
+            getObjectOutputStream().writeInt(v.length());//长度
+            getObjectOutputStream().writeUTF(v);//字符串
         }
     }
 
     public void writeObject(Object obj) throws IOException {
-        if (obj == null) {
-            getObjectOutputStream().writeByte(0);
+        if (obj == null) {//空
+            getObjectOutputStream().writeByte(0);//空
         } else {
-            getObjectOutputStream().writeByte(1);
-            getObjectOutputStream().writeObject(obj);
+            getObjectOutputStream().writeByte(1);//非空
+            getObjectOutputStream().writeObject(obj);//对象
         }
     }
 

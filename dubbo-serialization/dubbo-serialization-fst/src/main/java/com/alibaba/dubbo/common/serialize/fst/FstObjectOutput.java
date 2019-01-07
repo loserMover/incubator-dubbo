@@ -61,8 +61,10 @@ public class FstObjectOutput implements ObjectOutput {
     }
 
     public void writeBytes(byte[] v) throws IOException {
+        //空，写入-1
         if (v == null) {
             output.writeInt(-1);
+        //有数组
         } else {
             writeBytes(v, 0, v.length);
         }

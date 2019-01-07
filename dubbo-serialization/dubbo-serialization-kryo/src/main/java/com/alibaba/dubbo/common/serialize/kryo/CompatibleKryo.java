@@ -33,13 +33,14 @@ public class CompatibleKryo extends Kryo {
         if (type == null) {
             throw new IllegalArgumentException("type cannot be null.");
         }
-
+        //空构造方法时，使用JavaSerializer,Java原生序列化实现
         if (!type.isArray() && !type.isEnum() && !ReflectionUtils.checkZeroArgConstructor(type)) {
             if (logger.isWarnEnabled()) {
                 logger.warn(type + " has no zero-arg constructor and this will affect the serialization performance");
             }
             return new JavaSerializer();
         }
+        //使用Kryo默认序列化实现
         return super.getDefaultSerializer(type);
     }
 }
