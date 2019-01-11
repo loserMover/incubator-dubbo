@@ -24,6 +24,8 @@ import com.alibaba.dubbo.rpc.cluster.Directory;
 /**
  * {@link FailoverClusterInvoker}
  *
+ * 失败自动切换，重试其他服务器，但是重试会带来更大延迟，可通过retries="2"来设置重试（不包含第一次）
+ *
  */
 public class FailoverCluster implements Cluster {
 
