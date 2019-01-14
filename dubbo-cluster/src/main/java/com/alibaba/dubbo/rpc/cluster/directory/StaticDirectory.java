@@ -29,7 +29,9 @@ import java.util.List;
  *
  */
 public class StaticDirectory<T> extends AbstractDirectory<T> {
-
+    /**
+     * Invoker集合
+     */
     private final List<Invoker<T>> invokers;
 
     public StaticDirectory(List<Invoker<T>> invokers) {
@@ -45,6 +47,7 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
     }
 
     public StaticDirectory(URL url, List<Invoker<T>> invokers, List<Router> routers) {
+        //默认使用'url'参数。当它为空时，使用'invokers[0].url'
         super(url == null && invokers != null && !invokers.isEmpty() ? invokers.get(0).getUrl() : url, routers);
         if (invokers == null || invokers.isEmpty())
             throw new IllegalArgumentException("invokers == null");
@@ -56,9 +59,11 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
     }
 
     public boolean isAvailable() {
+        //若已经销毁，则返回不可用
         if (isDestroyed()) {
             return false;
         }
+        //循环Invokers，如果任一可用Invoker，则返回true
         for (Invoker<T> invoker : invokers) {
             if (invoker.isAvailable()) {
                 return true;
@@ -68,13 +73,17 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
     }
 
     public void destroy() {
+        //若已经销毁，返回
         if (isDestroyed()) {
             return;
         }
+        //标记销毁
         super.destroy();
+        //销毁每个Invoker
         for (Invoker<T> invoker : invokers) {
             invoker.destroy();
         }
+        //清空invokers集合
         invokers.clear();
     }
 

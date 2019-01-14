@@ -29,29 +29,54 @@ import java.util.List;
  *
  */
 public abstract class AbstractLoadBalance implements LoadBalance {
-
+    /**
+     * 计算权重
+     * @param uptime
+     * @param warmup
+     * @param weight
+     * @return
+     */
     static int calculateWarmupWeight(int uptime, int warmup, int weight) {
-        int ww = (int) ((float) uptime / ((float) warmup / (float) weight));
+        int ww = (int) ((float) uptime / ((float) warmup / (float) weight)); //进度百分比 * 权重。
         return ww < 1 ? 1 : (ww > weight ? weight : ww);
     }
 
     public <T> Invoker<T> select(List<Invoker<T>> invokers, URL url, Invocation invocation) {
         if (invokers == null || invokers.isEmpty())
             return null;
+        //只有一个Invoker时，直接返回
         if (invokers.size() == 1)
             return invokers.get(0);
         return doSelect(invokers, url, invocation);
     }
 
+    /**
+     * 自定义负载均衡策略
+     * @param invokers
+     * @param url
+     * @param invocation
+     * @param <T>
+     * @return
+     */
     protected abstract <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation);
 
+    /**
+     * 获得权重
+     * @param invoker
+     * @param invocation
+     * @return
+     */
     protected int getWeight(Invoker<?> invoker, Invocation invocation) {
+        //获得weight配置，及服务权重。默认为100
         int weight = invoker.getUrl().getMethodParameter(invocation.getMethodName(), Constants.WEIGHT_KEY, Constants.DEFAULT_WEIGHT);
         if (weight > 0) {
             long timestamp = invoker.getUrl().getParameter(Constants.REMOTE_TIMESTAMP_KEY, 0L);
             if (timestamp > 0L) {
+                //获得启动总时长
                 int uptime = (int) (System.currentTimeMillis() - timestamp);
+                //获得预热需要总时长。默认10*60*1000 = 10分钟
                 int warmup = invoker.getUrl().getParameter(Constants.WARMUP_KEY, Constants.DEFAULT_WARMUP);
+                //处于预热中，计算当前的权重
                 if (uptime > 0 && uptime < warmup) {
                     weight = calculateWarmupWeight(uptime, warmup, weight);
                 }

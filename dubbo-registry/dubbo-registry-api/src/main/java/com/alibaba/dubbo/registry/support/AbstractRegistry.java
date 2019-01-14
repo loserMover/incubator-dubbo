@@ -437,7 +437,7 @@ public abstract class AbstractRegistry implements Registry {
 
     /**
      * @desc 通知监听器，URL变化结果
-     *       数据流向‘urls’=>{@link #notified}
+     *       数据流向‘urls’=>{@link #notified} => {@link #properties} => {@link #file}
      * @param url 消费者URL
      * @param listener 监听器
      * @param urls 通知的URL变化结果（全量通知）
@@ -479,7 +479,7 @@ public abstract class AbstractRegistry implements Registry {
             notified.putIfAbsent(url, new ConcurrentHashMap<String, List<URL>>());
             categoryNotified = notified.get(url);
         }
-        // 处理通知的 URL 变化结果（全量数据）
+        // 【按照分类循环】处理通知的 URL 变化结果（全量数据）
         for (Map.Entry<String, List<URL>> entry : result.entrySet()) {
             String category = entry.getKey();
             List<URL> categoryList = entry.getValue();

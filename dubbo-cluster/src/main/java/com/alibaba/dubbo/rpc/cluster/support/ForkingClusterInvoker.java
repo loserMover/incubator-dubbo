@@ -42,7 +42,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  */
 public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
-
+    /**
+     * ExecutorService对象，并且CachedThreadPool
+     */
     private final ExecutorService executor = Executors.newCachedThreadPool(new NamedThreadFactory("forking-cluster-timer", true));
 
     public ForkingClusterInvoker(Directory<T> directory) {
@@ -51,13 +53,20 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Result doInvoke(final Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
+        //检查invokers即可用Invoker集合是否为空，如果为空，那么抛出异常
         checkInvokers(invokers, invocation);
+        //保存选择的Invoker集合
         final List<Invoker<T>> selected;
+        //得到最大并行数，默认Constants.DEFAULT_FORKS=2
         final int forks = getUrl().getParameter(Constants.FORKS_KEY, Constants.DEFAULT_FORKS);
+        //得到调用超时时间，默认为Constants.DEFAULT_TIMEOUT=1000毫秒
         final int timeout = getUrl().getParameter(Constants.TIMEOUT_KEY, Constants.DEFAULT_TIMEOUT);
+        //若最大并行数小于等于0，或者大于invokers，直接使用invokers
         if (forks <= 0 || forks >= invokers.size()) {
             selected = invokers;
         } else {
+            //循环，根据负载均衡机制从invokers中选择一个Invoker，从而组成Invoker集合。
+            //注意，因为增加了排重逻辑，所以不能保证获得的Invoker集合大小，等于最大并行数
             selected = new ArrayList<Invoker<T>>();
             for (int i = 0; i < forks; i++) {
                 // TODO. Add some comment here, refer chinese version for more details.
@@ -67,17 +76,25 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 }
             }
         }
+        //设置已经调用的Invoker集合到Context中
         RpcContext.getContext().setInvokers((List) selected);
+        //异常计数器
         final AtomicInteger count = new AtomicInteger();
+        //创建阻塞队列
         final BlockingQueue<Object> ref = new LinkedBlockingQueue<Object>();
+        //循环selected集合，提交到线程池，发起RPC调用
         for (final Invoker<T> invoker : selected) {
             executor.execute(new Runnable() {
                 public void run() {
                     try {
+                        //RPC调用，获得Result结果
                         Result result = invoker.invoke(invocation);
+                        //添加Result到'ref'阻塞队列
                         ref.offer(result);
                     } catch (Throwable e) {
+                        //异常计数器+1
                         int value = count.incrementAndGet();
+                        //若PRC调用结果都是异常，添加异常到'ref'阻塞队列
                         if (value >= selected.size()) {
                             ref.offer(e);
                         }
@@ -86,11 +103,14 @@ public class ForkingClusterInvoker<T> extends AbstractClusterInvoker<T> {
             });
         }
         try {
+            //从'ref'队列中，阻塞等待结果
             Object ret = ref.poll(timeout, TimeUnit.MILLISECONDS);
+            //若是异常结果，抛出RpcException
             if (ret instanceof Throwable) {
                 Throwable e = (Throwable) ret;
                 throw new RpcException(e instanceof RpcException ? ((RpcException) e).getCode() : 0, "Failed to forking invoke provider " + selected + ", but no luck to perform the invocation. Last error is: " + e.getMessage(), e.getCause() != null ? e.getCause() : e);
             }
+            //若是正常结果，直接返回
             return (Result) ret;
         } catch (InterruptedException e) {
             throw new RpcException("Failed to forking invoke provider " + selected + ", but no luck to perform the invocation. Last error is: " + e.getMessage(), e);

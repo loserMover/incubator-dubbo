@@ -28,6 +28,7 @@ import java.util.Random;
 /**
  * LeastActiveLoadBalance
  *
+ * 最少活跃调用数，相同活跃数的随机，活跃数指调用前后计数差。 *
  */
 public class LeastActiveLoadBalance extends AbstractLoadBalance {
 
