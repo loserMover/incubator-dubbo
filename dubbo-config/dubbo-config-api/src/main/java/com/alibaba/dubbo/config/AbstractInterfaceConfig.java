@@ -353,18 +353,21 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         }
         //'mock'配置项的校验
         if (ConfigUtils.isNotEmpty(mock)) {
-            if (mock.startsWith(Constants.RETURN_PREFIX)) {
+            if (mock.startsWith(Constants.RETURN_PREFIX)) {// 处理 "return " 开头的情况
                 String value = mock.substring(Constants.RETURN_PREFIX.length());
+                // 校验 Mock 值，配置正确
                 try {
                     MockInvoker.parseMockValue(value);
                 } catch (Exception e) {
                     throw new IllegalStateException("Illegal mock json value in <dubbo:service ... mock=\"" + mock + "\" />");
                 }
             } else {
+                // 获得 Mock 类
                 Class<?> mockClass = ConfigUtils.isDefault(mock) ? ReflectUtils.forName(interfaceClass.getName() + "Mock") : ReflectUtils.forName(mock);
                 if (!interfaceClass.isAssignableFrom(mockClass)) {
                     throw new IllegalStateException("The mock implementation class " + mockClass.getName() + " not implement interface " + interfaceClass.getName());
                 }
+                // 校验是否有默认构造方法
                 try {
                     mockClass.getConstructor(new Class<?>[0]);
                 } catch (NoSuchMethodException e) {

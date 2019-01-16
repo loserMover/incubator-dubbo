@@ -27,7 +27,9 @@ public class MapMerger implements Merger<Map<?, ?>> {
         if (items.length == 0) {
             return null;
         }
+        //创建结果Map
         Map<Object, Object> result = new HashMap<Object, Object>();
+        //合并多个Map
         for (Map<?, ?> item : items) {
             if (item != null) {
                 result.putAll(item);

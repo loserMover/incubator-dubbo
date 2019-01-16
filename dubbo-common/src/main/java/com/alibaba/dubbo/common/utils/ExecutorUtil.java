@@ -43,10 +43,17 @@ public class ExecutorUtil {
         return false;
     }
 
+    /**
+     * 优雅关闭，禁止新的任务提交，将原有任务执行完
+     * @param executor
+     * @param timeout
+     */
     public static void gracefulShutdown(Executor executor, int timeout) {
+        //忽略，若不是ExecutorService，或者已经关闭
         if (!(executor instanceof ExecutorService) || isShutdown(executor)) {
             return;
         }
+        //关闭，禁止新的任务提交，将原有任务执行完
         final ExecutorService es = (ExecutorService) executor;
         try {
             es.shutdown(); // Disable new tasks from being submitted
@@ -55,23 +62,28 @@ public class ExecutorUtil {
         } catch (NullPointerException ex2) {
             return;
         }
+        //等待原有任务执行完。若等待超时，强制结束所有任务
         try {
             if (!es.awaitTermination(timeout, TimeUnit.MILLISECONDS)) {
                 es.shutdownNow();
             }
         } catch (InterruptedException ex) {
+            //发生InterruptedException异常，也强制结束所有任务
             es.shutdownNow();
             Thread.currentThread().interrupt();
         }
+        //若未关闭成功，新开线程取关闭
         if (!isShutdown(es)) {
             newThreadToCloseExecutor(es);
         }
     }
 
     public static void shutdownNow(Executor executor, final int timeout) {
+        //忽略，若不是ExecutorService，或者已经关闭
         if (!(executor instanceof ExecutorService) || isShutdown(executor)) {
             return;
         }
+        //立即关闭，包括原有任务也打断
         final ExecutorService es = (ExecutorService) executor;
         try {
             es.shutdownNow();
@@ -80,11 +92,13 @@ public class ExecutorUtil {
         } catch (NullPointerException ex2) {
             return;
         }
+        //等待原有任务被打断完成
         try {
             es.awaitTermination(timeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
+        //若未关闭陈宫，新开线程去关闭
         if (!isShutdown(es)) {
             newThreadToCloseExecutor(es);
         }
@@ -95,8 +109,10 @@ public class ExecutorUtil {
             shutdownExecutor.execute(new Runnable() {
                 public void run() {
                     try {
+                        //循环1000次，不断长痣结束线程池
                         for (int i = 0; i < 1000; i++) {
                             es.shutdownNow();
+                            //等待原有任务被打断完成
                             if (es.awaitTermination(10, TimeUnit.MILLISECONDS)) {
                                 break;
                             }

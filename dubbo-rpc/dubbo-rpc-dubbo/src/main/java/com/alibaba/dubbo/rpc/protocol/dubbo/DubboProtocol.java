@@ -506,6 +506,7 @@ public class DubboProtocol extends AbstractProtocol {
     }
 
     public void destroy() {
+        //销毁所有ExchangeServer
         for (String key : new ArrayList<String>(serverMap.keySet())) {
             ExchangeServer server = serverMap.remove(key);
             if (server != null) {
@@ -513,13 +514,13 @@ public class DubboProtocol extends AbstractProtocol {
                     if (logger.isInfoEnabled()) {
                         logger.info("Close dubbo server: " + server.getLocalAddress());
                     }
-                    server.close(ConfigUtils.getServerShutdownTimeout());
+                    server.close(ConfigUtils.getServerShutdownTimeout());//销毁
                 } catch (Throwable t) {
                     logger.warn(t.getMessage(), t);
                 }
             }
         }
-
+        //销毁所有ExchangeClient
         for (String key : new ArrayList<String>(referenceClientMap.keySet())) {
             ExchangeClient client = referenceClientMap.remove(key);
             if (client != null) {
@@ -527,13 +528,13 @@ public class DubboProtocol extends AbstractProtocol {
                     if (logger.isInfoEnabled()) {
                         logger.info("Close dubbo connect: " + client.getLocalAddress() + "-->" + client.getRemoteAddress());
                     }
-                    client.close(ConfigUtils.getServerShutdownTimeout());
+                    client.close(ConfigUtils.getServerShutdownTimeout());//销毁
                 } catch (Throwable t) {
                     logger.warn(t.getMessage(), t);
                 }
             }
         }
-
+        //销毁所有幽灵ExchangeClient
         for (String key : new ArrayList<String>(ghostClientMap.keySet())) {
             ExchangeClient client = ghostClientMap.remove(key);
             if (client != null) {
@@ -541,7 +542,7 @@ public class DubboProtocol extends AbstractProtocol {
                     if (logger.isInfoEnabled()) {
                         logger.info("Close dubbo connect: " + client.getLocalAddress() + "-->" + client.getRemoteAddress());
                     }
-                    client.close(ConfigUtils.getServerShutdownTimeout());
+                    client.close(ConfigUtils.getServerShutdownTimeout());//销毁
                 } catch (Throwable t) {
                     logger.warn(t.getMessage(), t);
                 }

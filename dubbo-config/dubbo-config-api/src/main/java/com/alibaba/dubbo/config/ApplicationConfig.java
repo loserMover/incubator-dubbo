@@ -196,6 +196,7 @@ public class ApplicationConfig extends AbstractConfig {
 
     public void setLogger(String logger) {
         this.logger = logger;
+        //设置LoggerAdapter
         LoggerFactory.setLoggerAdapter(logger);
     }
 

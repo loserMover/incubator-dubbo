@@ -45,15 +45,25 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ScriptRouter implements Router {
 
     private static final Logger logger = LoggerFactory.getLogger(ScriptRouter.class);
-
+    /**
+     * 脚本类型与ScriptEngine的映射缓存
+     */
     private static final Map<String, ScriptEngine> engines = new ConcurrentHashMap<String, ScriptEngine>();
-
+    /**
+     * 路由规则URL
+     */
     private final ScriptEngine engine;
-
+    /**
+     * 路由规则的优先级，用于排序，优先级越大越靠前执行，可不填，缺省为0
+     */
     private final int priority;
-
+    /**
+     * 路由规则内容
+     */
     private final String rule;
-
+    /**
+     * 路由规则URL
+     */
     private final URL url;
 
     public ScriptRouter(URL url) {
@@ -61,6 +71,7 @@ public class ScriptRouter implements Router {
         String type = url.getParameter(Constants.TYPE_KEY);
         this.priority = url.getParameter(Constants.PRIORITY_KEY, 0);
         String rule = url.getParameterAndDecoded(Constants.RULE_KEY);
+        //初始化'engine'
         if (type == null || type.length() == 0) {
             type = Constants.DEFAULT_SCRIPT_TYPE_KEY;
         }
@@ -68,6 +79,7 @@ public class ScriptRouter implements Router {
             throw new IllegalStateException(new IllegalStateException("route rule can not be empty. rule:" + rule));
         }
         ScriptEngine engine = engines.get(type);
+        //在缓存中不存在，则进行创建ScriptEngine对象
         if (engine == null) {
             engine = new ScriptEngineManager().getEngineByName(type);
             if (engine == null) {
@@ -86,13 +98,15 @@ public class ScriptRouter implements Router {
     @SuppressWarnings("unchecked")
     public <T> List<Invoker<T>> route(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
         try {
+            //执行脚本
             List<Invoker<T>> invokersCopy = new ArrayList<Invoker<T>>(invokers);
             Compilable compilable = (Compilable) engine;
             Bindings bindings = engine.createBindings();
             bindings.put("invokers", invokersCopy);
             bindings.put("invocation", invocation);
-            bindings.put("context", RpcContext.getContext());
-            CompiledScript function = compilable.compile(rule);
+            bindings.put("context", RpcContext.getContext());//编译
+            CompiledScript function = compilable.compile(rule);//执行
+            //根据结果类型，转换成（List<Invoker<T>>）类型返回
             Object obj = function.eval(bindings);
             if (obj instanceof Invoker[]) {
                 invokersCopy = Arrays.asList((Invoker<T>[]) obj);
@@ -106,6 +120,7 @@ public class ScriptRouter implements Router {
             }
             return invokersCopy;
         } catch (ScriptException e) {
+            //发生异常，忽略路由规则，返回全'invokers'集合
             //fail then ignore rule .invokers.
             logger.error("route error , rule has been ignored. rule: " + rule + ", method:" + invocation.getMethodName() + ", url: " + RpcContext.getContext().getUrl(), e);
             return invokers;

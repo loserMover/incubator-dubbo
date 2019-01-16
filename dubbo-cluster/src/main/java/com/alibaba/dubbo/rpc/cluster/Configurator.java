@@ -27,13 +27,16 @@ public interface Configurator extends Comparable<Configurator> {
     /**
      * get the configurator url.
      *
+     * 配置规则
+     *
      * @return configurator url.
      */
     URL getUrl();
 
     /**
      * Configure the provider url.
-     * O
+     *
+     * 配置到URL种
      *
      * @param url - old rovider url.
      * @return new provider url.

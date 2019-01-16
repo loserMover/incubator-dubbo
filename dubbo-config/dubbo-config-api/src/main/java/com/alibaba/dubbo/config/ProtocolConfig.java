@@ -152,18 +152,20 @@ public class ProtocolConfig extends AbstractConfig {
 
     // TODO: 2017/8/30 to move this method somewhere else
     public static void destroyAll() {
+        //忽略，若已经销毁
         if (!destroyed.compareAndSet(false, true)) {
             return;
         }
+        //销毁Registry相关
         AbstractRegistryFactory.destroyAll();
-
+        //等到服务消费，接收注册中心通知到该服务提供者已经下线，加大了在不重试情况下优雅停机的成功率
         // Wait for registry notification
         try {
             Thread.sleep(ConfigUtils.getServerShutdownTimeout());
         } catch (InterruptedException e) {
             logger.warn("Interrupted unexpectedly when waiting for registry notification during shutdown process!");
         }
-
+        //销毁Protocol相关
         ExtensionLoader<Protocol> loader = ExtensionLoader.getExtensionLoader(Protocol.class);
         for (String protocolName : loader.getLoadedExtensions()) {
             try {

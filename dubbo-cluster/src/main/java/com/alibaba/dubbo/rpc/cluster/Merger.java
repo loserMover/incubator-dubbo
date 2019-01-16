@@ -20,7 +20,11 @@ import com.alibaba.dubbo.common.extension.SPI;
 
 @SPI
 public interface Merger<T> {
-
+    /**
+     * 合并T数组，返回合并后的T对象
+     * @param items T数组
+     * @return T对象
+     */
     T merge(T... items);
 
 }

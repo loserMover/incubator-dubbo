@@ -135,22 +135,27 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
     }
 
     public void destroy() {
+        //忽略，若已销毁
         // in order to avoid closing a client multiple times, a counter is used in case of connection per jvm, every
         // time when client.close() is called, counter counts down once, and when counter reaches zero, client will be
         // closed.
         if (super.isDestroyed()) {
             return;
         } else {
+            //双重锁校验，避免已经关闭
             // double check to avoid dup close
             destroyLock.lock();
             try {
                 if (super.isDestroyed()) {
                     return;
                 }
+                //标记关闭
                 super.destroy();
+                //移除出'invokers'
                 if (invokers != null) {
                     invokers.remove(this);
                 }
+                //关闭所有ExchangeClient
                 for (ExchangeClient client : clients) {
                     try {
                         client.close(ConfigUtils.getServerShutdownTimeout());
@@ -160,6 +165,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
                 }
 
             } finally {
+                //释放锁
                 destroyLock.unlock();
             }
         }

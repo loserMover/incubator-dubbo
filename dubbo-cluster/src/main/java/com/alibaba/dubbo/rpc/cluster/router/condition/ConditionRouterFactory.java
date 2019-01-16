@@ -23,6 +23,8 @@ import com.alibaba.dubbo.rpc.cluster.RouterFactory;
 /**
  * ConditionRouterFactory
  *
+ * 条件路由规则
+ *
  */
 public class ConditionRouterFactory implements RouterFactory {
 
